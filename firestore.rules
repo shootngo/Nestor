@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Lock Nestor to the two household Email/Password accounts.
+    // Replace both addresses (lowercase), then publish these rules in
+    // Firebase Console → Firestore → Rules.
+    // js/config.js householdEmails is a client convenience check only —
+    // these rules are what actually keep the data private.
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+    function householdMember() {
+      return signedIn() && request.auth.token.email.lower() in [
+        'paste_frank_email@example.com',
+        'paste_wife_email@example.com'
+      ];
+    }
+
+    match /events/{id} {
+      allow read, write: if householdMember();
+    }
+    match /bills/{id} {
+      allow read, write: if householdMember();
+    }
+    match /payments/{id} {
+      allow read, write: if householdMember();
+    }
+  }
+}
