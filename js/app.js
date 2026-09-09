@@ -11,9 +11,12 @@ import {
 import {
   deleteBill,
   deleteEvent,
+  deleteMaintenance,
   deletePayment,
+  markMaintenanceDone,
   saveBill,
   saveEvent,
+  saveMaintenance,
   savePayment,
   startStore,
   stopStore,
@@ -23,6 +26,11 @@ import { escapeHtml, firebaseConfigured, householdEmails, ymd } from "./util.js"
 import { renderCalendar } from "./calendar.js";
 import { renderBillDetail, renderBillForm, renderBillList } from "./bills.js";
 import { renderEventDetail, renderEventForm } from "./events.js";
+import {
+  renderMaintenanceDetail,
+  renderMaintenanceForm,
+  renderMaintenanceList,
+} from "./maintenance.js";
 
 const view = document.getElementById("view");
 const authScreen = document.getElementById("auth-screen");
@@ -32,7 +40,7 @@ const toastEl = document.getElementById("toast");
 const whoEl = document.getElementById("who");
 const tabbar = document.getElementById("tabbar");
 
-let data = { bills: [], events: [], payments: [] };
+let data = { bills: [], events: [], payments: [], maintenance: [] };
 let cal = {
   year: new Date().getFullYear(),
   monthIndex: new Date().getMonth(),
@@ -77,6 +85,7 @@ async function render() {
   const { parts, params } = routeParts();
   const section = parts[0] || "calendar";
   if (section === "bills") setTab("bills");
+  else if (section === "maintenance") setTab("maintenance");
   else if (section === "more") setTab("more");
   else setTab("calendar");
 
@@ -125,6 +134,65 @@ async function render() {
   }
   if (section === "bills") {
     renderBillList(view, data);
+    return;
+  }
+  if (section === "maintenance" && parts[1] === "new") {
+    renderMaintenanceForm(
+      view,
+      null,
+      {
+        save: async (input) => {
+          try {
+            const rec = await saveMaintenance(input);
+            toast("Task added");
+            location.hash = `#/maintenance/${rec.id}`;
+          } catch (err) {
+            toast(err.message || "Could not save");
+          }
+        },
+      },
+      params.get("date")
+    );
+    return;
+  }
+  if (section === "maintenance" && parts[1] && parts[2] === "edit") {
+    const task = (data.maintenance || []).find((t) => t.id === parts[1]);
+    renderMaintenanceForm(view, task, {
+      save: async (input) => {
+        try {
+          await saveMaintenance(input);
+          toast("Saved");
+          location.hash = `#/maintenance/${task.id}`;
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "maintenance" && parts[1]) {
+    const task = (data.maintenance || []).find((t) => t.id === parts[1]);
+    renderMaintenanceDetail(view, task, {
+      remove: async () => {
+        if (!confirm("Delete this task?")) return;
+        await deleteMaintenance(task.id);
+        toast("Task removed");
+        location.hash = "#/maintenance";
+      },
+      markDone: async (completedOn) => {
+        try {
+          await markMaintenanceDone(task.id, completedOn);
+          toast("Marked done");
+          render();
+        } catch (err) {
+          toast(err.message || "Could not update");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "maintenance") {
+    renderMaintenanceList(view, data);
     return;
   }
   if (section === "event" && parts[1] === "new") {
@@ -227,11 +295,8 @@ function renderAuth() {
         ? `<p class="fine" style="margin-top:12px">Household logins: ${emails.join(" · ")}</p>`
         : `<p class="fine" style="margin-top:12px">Add both household emails to <code>js/config.js</code> and <code>firestore.rules</code>.</p>`
     }
-    ${
-      configured
-        ? ""
-        : `<p style="margin-top:16px"><button class="btn btn-ghost" style="width:100%" id="preview-btn" type="button">Local preview</button></p>`
-    }
+    <p style="margin-top:16px"><button class="btn btn-ghost" style="width:100%" id="preview-btn" type="button">Local preview</button></p>
+    <p class="fine" style="margin-top:8px;text-align:center">Preview stays on this device and does not sync.</p>
   `;
   const form = authScreen.querySelector("#login-form");
   if (form) {
@@ -265,6 +330,13 @@ function renderMore() {
   view.innerHTML = `
     <div class="section-title"><h2>More</h2></div>
     ${isPreview() ? `<div class="banner banner-info">Local preview — nothing is synced to Firebase.</div>` : ""}
+    <a class="bill-card" href="#/maintenance" style="margin-bottom:14px">
+      <div class="row">
+        <h3>Home Maintenance</h3>
+        <span class="chip">${(data.maintenance || []).length}</span>
+      </div>
+      <p class="fine" style="margin:0">Filters, pest spray, and other recurring upkeep.</p>
+    </a>
     <div class="card" style="margin-bottom:14px">
       <p style="margin:0 0 8px"><b>Signed in as</b><br>${escapeHtml(user.displayName || "—")}<br><span class="fine">${escapeHtml(user.email || "")}</span></p>
       <form id="name-form" class="field" style="margin:0">
@@ -278,7 +350,6 @@ function renderMore() {
     <h3 style="font-family:Fraunces,Georgia,serif">Coming soon</h3>
     <div class="coming">
       <ul>
-        <li>Home maintenance</li>
         <li>Private notes</li>
         <li>Documents / warranties</li>
         <li>Vehicles</li>

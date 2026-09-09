@@ -25,5 +25,8 @@ service cloud.firestore {
     match /payments/{id} {
       allow read, write: if householdMember();
     }
+    match /maintenance/{id} {
+      allow read, write: if householdMember();
+    }
   }
 }

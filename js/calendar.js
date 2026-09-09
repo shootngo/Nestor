@@ -3,8 +3,10 @@ import {
   dueDate,
   escapeHtml,
   formatMoney,
+  maintenanceStatus,
   monthLabel,
   parseYmd,
+  recurrenceLabel,
   weekdayLong,
   ymd,
 } from "./util.js";
@@ -31,12 +33,12 @@ export function monthCells(year, monthIndex) {
   return cells;
 }
 
-export function itemsOnDay(cell, { bills, events, payments }, today) {
+export function itemsOnDay(cell, { bills, events, payments, maintenance }, today) {
   const d = cell.date;
   const year = d.getFullYear();
   const month = d.getMonth();
   const dayItems = [];
-  for (const bill of bills.filter((b) => !b.archived)) {
+  for (const bill of (bills || []).filter((b) => !b.archived)) {
     const due = dueDate(bill.dueDay, year, month);
     if (ymd(due) !== cell.ymd) continue;
     const status = billStatus(bill, payments, year, month, today);
@@ -49,7 +51,34 @@ export function itemsOnDay(cell, { bills, events, payments }, today) {
       href: `#/bills/${bill.id}`,
     });
   }
-  for (const ev of events) {
+  for (const task of maintenance || []) {
+    const doneToday = task.lastCompleted === cell.ymd;
+    const dueToday = task.nextDue === cell.ymd;
+    if (doneToday) {
+      const recur = recurrenceLabel(task);
+      dayItems.push({
+        kind: "maintenance",
+        id: task.id,
+        title: task.name,
+        tone: "paid",
+        meta: recur ? `Done · ${recur}` : "Done",
+        href: `#/maintenance/${task.id}`,
+      });
+    }
+    if (dueToday && !doneToday) {
+      const status = maintenanceStatus(task, today);
+      const recur = recurrenceLabel(task);
+      dayItems.push({
+        kind: "maintenance",
+        id: task.id,
+        title: task.name,
+        tone: status.tone,
+        meta: recur ? `${status.label} · ${recur}` : status.label,
+        href: `#/maintenance/${task.id}`,
+      });
+    }
+  }
+  for (const ev of events || []) {
     if (ev.date !== cell.ymd) continue;
     dayItems.push({
       kind: "event",
@@ -64,7 +93,7 @@ export function itemsOnDay(cell, { bills, events, payments }, today) {
 }
 
 export function renderCalendar(root, state, handlers) {
-  const { year, monthIndex, selectedYmd, bills, events, payments } = state;
+  const { year, monthIndex, selectedYmd, bills, events, payments, maintenance } = state;
   const today = startToday();
   const todayYmd = ymd(today);
   const cells = monthCells(year, monthIndex);
@@ -72,7 +101,7 @@ export function renderCalendar(root, state, handlers) {
   const selectedDate = parseYmd(selected);
   const selectedItems = itemsOnDay(
     { date: selectedDate, ymd: selected, inMonth: true },
-    { bills, events, payments },
+    { bills, events, payments, maintenance },
     today
   );
 
@@ -86,7 +115,7 @@ export function renderCalendar(root, state, handlers) {
     <div class="cal-grid">
       ${cells
         .map((cell) => {
-          const items = itemsOnDay(cell, { bills, events, payments }, today);
+          const items = itemsOnDay(cell, { bills, events, payments, maintenance }, today);
           const classes = ["day"];
           if (!cell.inMonth) classes.push("is-out");
           if (cell.ymd === todayYmd) classes.push("is-today");
@@ -103,9 +132,9 @@ export function renderCalendar(root, state, handlers) {
         .join("")}
     </div>
     <div class="legend">
-      <span><i class="dot unpaid"></i>Unpaid</span>
+      <span><i class="dot unpaid"></i>Overdue</span>
       <span><i class="dot due"></i>Due soon</span>
-      <span><i class="dot paid"></i>Paid</span>
+      <span><i class="dot paid"></i>Done</span>
       <span><i class="dot event"></i>Event</span>
     </div>
     <section class="day-sheet card">
@@ -117,7 +146,7 @@ export function renderCalendar(root, state, handlers) {
                 (it) => `<a class="item" href="${it.href}">
                   <span class="rail ${it.tone}"></span>
                   <span><b>${escapeHtml(it.title)}</b><small>${escapeHtml(it.meta)}</small></span>
-                  <span class="chip ${it.tone === "event" ? "" : it.tone}">${it.kind === "bill" ? "Bill" : "Event"}</span>
+                  <span class="chip ${it.tone === "event" ? "" : it.tone}">${kindLabel(it.kind)}</span>
                 </a>`
               )
               .join("")}</div>`
@@ -126,6 +155,7 @@ export function renderCalendar(root, state, handlers) {
       <div class="fab-row">
         <a class="btn btn-ghost" href="#/event/new?date=${selected}">Add event</a>
         <a class="btn btn-ghost" href="#/bills/new">Add bill</a>
+        <a class="btn btn-ghost" href="#/maintenance/new?date=${selected}">Add task</a>
       </div>
     </section>
   `;
@@ -135,6 +165,12 @@ export function renderCalendar(root, state, handlers) {
   root.querySelectorAll(".day").forEach((btn) => {
     btn.onclick = () => handlers.selectDay(btn.dataset.ymd);
   });
+}
+
+function kindLabel(kind) {
+  if (kind === "bill") return "Bill";
+  if (kind === "maintenance") return "Home";
+  return "Event";
 }
 
 function startToday() {
