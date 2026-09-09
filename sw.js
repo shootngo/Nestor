@@ -1,5 +1,5 @@
 /* Nestor service worker — cache name must stay unique vs Nickey / Rosa / Stashr */
-const CACHE = "nestor-v4";
+const CACHE = "nestor-v5";
 const SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const SHELL = [
   "./js/firebase.js",
   "./js/auth.js",
   "./js/store.js",
+  "./js/store-sync.js",
   "./js/calendar.js",
   "./js/bills.js",
   "./js/events.js",

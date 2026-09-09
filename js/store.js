@@ -1,5 +1,6 @@
 import { db, isConfigured } from "./firebase.js";
 import { actor, isPreview } from "./auth.js";
+import { mergeServerDocs, rememberDelete, rememberSet, upsertInto } from "./store-sync.js";
 import { addInterval, nowIso, parseYmd, uid, ymd } from "./util.js";
 
 const LOCAL_KEY = "nestor-local-v1";
@@ -11,6 +12,8 @@ let payments = [];
 let maintenance = [];
 const listeners = new Set();
 let unsubs = [];
+/** Local writes waiting for onSnapshot to catch up (`collection:id` → set|delete). */
+const pendingWrites = new Map();
 
 function emit() {
   const snap = { bills, events, payments, maintenance };
@@ -30,6 +33,23 @@ function setList(name, list) {
   if (name === "events") events = list;
   if (name === "payments") payments = list;
   if (name === "maintenance") maintenance = list;
+}
+
+function upsertLocal(collection, record) {
+  rememberSet(pendingWrites, collection, record);
+  setList(collection, upsertInto(getList(collection), record));
+}
+
+function removeLocal(collection, id) {
+  rememberDelete(pendingWrites, collection, id);
+  setList(
+    collection,
+    getList(collection).filter((x) => x.id !== id)
+  );
+}
+
+function applyServerDocs(collection, serverList) {
+  setList(collection, mergeServerDocs(serverList, pendingWrites, collection));
 }
 
 function shiftYmd(days) {
@@ -201,7 +221,7 @@ export async function startStore() {
   const firestore = db();
   unsubs = COLLECTIONS.map((name) =>
     firestore.collection(name).onSnapshot((snap) => {
-      setList(name, mapDocs(snap));
+      applyServerDocs(name, mapDocs(snap));
       emit();
     })
   );
@@ -216,6 +236,7 @@ export function stopStore() {
     }
   }
   unsubs = [];
+  pendingWrites.clear();
 }
 
 function stampNew() {
@@ -234,29 +255,26 @@ function stampUpdate(existing) {
 
 async function writeDoc(collection, record) {
   if (isPreview() || !isConfigured()) {
-    const list = getList(collection).slice();
-    const idx = list.findIndex((x) => x.id === record.id);
-    if (idx >= 0) list[idx] = record;
-    else list.push(record);
-    setList(collection, list);
+    upsertLocal(collection, record);
     saveLocal();
     return record;
   }
   const ref = db().collection(collection).doc(record.id);
   await ref.set(record, { merge: true });
+  upsertLocal(collection, record);
+  emit();
   return record;
 }
 
 async function removeDoc(collection, id) {
   if (isPreview() || !isConfigured()) {
-    setList(
-      collection,
-      getList(collection).filter((x) => x.id !== id)
-    );
+    removeLocal(collection, id);
     saveLocal();
     return;
   }
   await db().collection(collection).doc(id).delete();
+  removeLocal(collection, id);
+  emit();
 }
 
 export async function saveBill(input) {
