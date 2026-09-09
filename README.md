@@ -8,7 +8,7 @@ Live (after GitHub Pages is on): https://shootngo.github.io/nestor/
 
 ## What is in section 1
 
-- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v2`) so it never collides with Nickey, Rosa, or Stashr.
+- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v3`) so it never collides with Nickey, Rosa, or Stashr.
 - **Icon:** house in a nest (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`).
 - **Splash:** egg hatching a house (`assets/splash.jpg`) — shown briefly on first load of a session.
 - **Theme:** sage, cream, nest browns.
@@ -26,7 +26,7 @@ python3 -m http.server 8080
 
 Open http://localhost:8080/
 
-With the placeholder Firebase config, use **Local preview** on the sign-in screen. Preview data stays in this browser’s `localStorage`. It is not synced.
+With Firebase wired, sign in with a household Email/Password account. Use **Local preview** if you only want data on this device (`localStorage`, not synced).
 
 ## GitHub Pages
 
@@ -40,7 +40,15 @@ Add `shootngo.github.io` as an authorized domain in Firebase (step 8 below).
 
 ## Firebase — exact Console steps
 
-Paste keys into [`js/config.js`](js/config.js). Keep the two household emails in sync with [`firestore.rules`](firestore.rules).
+**Project `nestor-c2ae8` is already wired** in [`js/config.js`](js/config.js) and [`firestore.rules`](firestore.rules) (`shootngo@gmail.com`, `jeannie.newall@gmail.com`).
+
+Frank still does these three steps in Firebase Console by hand:
+
+1. **Enable Email/Password** — Authentication → Sign-in method → Email/Password → Enable → Save.
+2. **Create both users** — Authentication → Users → Add user for `shootngo@gmail.com` and `jeannie.newall@gmail.com`.
+3. **Publish rules** — Firestore → Rules → paste [`firestore.rules`](firestore.rules) → Publish.
+
+The rest of this section is the original Console walkthrough (create project / paste keys are already done).
 
 ### 1. Create a project
 
@@ -123,17 +131,19 @@ The client uses this list to reject anyone else after sign-in. **Real lock-down 
 
 Without this, sign-in from Pages will fail.
 
-### 9. What Frank must paste (checklist)
+### 9. Remaining Console work (checklist)
 
-| Where | What |
+Config and rules in this repo are already filled in for `nestor-c2ae8`. **Never commit passwords or service account keys.**
+
+| Where | Status |
 | --- | --- |
-| `js/config.js` → `firebase.*` | Web app config from Project settings |
-| `js/config.js` → `householdEmails` | Frank’s email + wife’s email |
-| `firestore.rules` household list | The same two emails, lowercase |
-| Firebase Auth users | Those two accounts, Email/Password |
+| `js/config.js` → `firebase.*` | Done (`nestor-c2ae8`) |
+| `js/config.js` → `householdEmails` | Done |
+| `firestore.rules` household list | Done (lowercase emails) |
+| Firebase Auth: Email/Password on | **Frank — Console** |
+| Firebase Auth users | **Frank — create both accounts** |
+| Firestore → Rules → Publish | **Frank — publish `firestore.rules`** |
 | Auth authorized domains | `shootngo.github.io` + `localhost` |
-
-Commit the edited `js/config.js` and `firestore.rules` (they are not secrets in the Firebase web-app sense, but they *are* your project identifiers). **Never commit passwords.**
 
 ## Firestore shape (section 1)
 
