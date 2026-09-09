@@ -1,18 +1,27 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+    function householdMember() {
+      return signedIn() && request.auth.token.email.lower() in [
+        'shootngo@gmail.com',
+        'jeannie.newall@gmail.com'
+      ];
+    }
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDIOkUTuXQ7vQHoUdC23CX2M_ihwHI6QKU",
-  authDomain: "nestor-c2ae8.firebaseapp.com",
-  projectId: "nestor-c2ae8",
-  storageBucket: "nestor-c2ae8.firebasestorage.app",
-  messagingSenderId: "487623313396",
-  appId: "1:487623313396:web:bbcd15fc7608465c5a1ba1"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
+    match /events/{id} {
+      allow read, write: if householdMember();
+    }
+    match /bills/{id} {
+      allow read, write: if householdMember();
+    }
+    match /payments/{id} {
+      allow read, write: if householdMember();
+    }
+    match /maintenance/{id} {
+      allow read, write: if householdMember();
+    }
+  }
+}
