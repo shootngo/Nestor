@@ -9,16 +9,16 @@
  */
 window.NESTOR_CONFIG = {
   firebase: {
-    apiKey: "PASTE_API_KEY",
-    authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-    projectId: "PASTE_PROJECT_ID",
-    storageBucket: "PASTE_PROJECT_ID.appspot.com",
-    messagingSenderId: "PASTE_SENDER_ID",
-    appId: "PASTE_APP_ID",
+    apiKey: "AIzaSyDIOkUTuXQ7vQHoUdC23CX2M_ihwHI6QKU",
+    authDomain: "nestor-c2ae8.firebaseapp.com",
+    projectId: "nestor-c2ae8",
+    storageBucket: "nestor-c2ae8.firebasestorage.app",
+    messagingSenderId: "487623313396",
+    appId: "1:487623313396:web:bbcd15fc7608465c5a1ba1",
   },
   /* The two household logins (Email/Password). Case-insensitive. */
   householdEmails: [
-    "PASTE_FRANK_EMAIL@example.com",
-    "PASTE_WIFE_EMAIL@example.com",
+    "shootngo@gmail.com",
+    "jeannie.newall@gmail.com",
   ],
 };

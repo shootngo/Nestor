@@ -11,8 +11,8 @@ service cloud.firestore {
     }
     function householdMember() {
       return signedIn() && request.auth.token.email.lower() in [
-        'paste_frank_email@example.com',
-        'paste_wife_email@example.com'
+        'shootngo@gmail.com',
+        'jeannie.newall@gmail.com'
       ];
     }
 
