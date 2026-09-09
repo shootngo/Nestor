@@ -8,7 +8,7 @@ Live (after GitHub Pages is on): https://shootngo.github.io/nestor/
 
 ## What is in section 1
 
-- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v1`) so it never collides with Nickey, Rosa, or Stashr.
+- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v2`) so it never collides with Nickey, Rosa, or Stashr.
 - **Icon:** house in a nest (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`).
 - **Splash:** egg hatching a house (`assets/splash.jpg`) — shown briefly on first load of a session.
 - **Theme:** sage, cream, nest browns.
