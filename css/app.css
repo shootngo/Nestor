@@ -109,7 +109,7 @@ a { color: var(--sage-dark); }
   bottom: 0;
   width: min(480px, 100%);
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 6px;
   padding: 8px 12px calc(8px + var(--safe-bottom));
   background: color-mix(in srgb, var(--paper) 92%, var(--cream));
@@ -227,6 +227,11 @@ a { color: var(--sage-dark); }
   outline: none;
 }
 .field textarea { min-height: 88px; resize: vertical; }
+.field-split {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 8px;
+}
 .field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--sage);
   box-shadow: 0 0 0 3px var(--sage-mist);
@@ -401,6 +406,7 @@ a { color: var(--sage-dark); }
 .chip.paid { background: var(--paid-soft); color: #245528; }
 .chip.due { background: var(--due-soft); color: #6d5308; }
 .chip.unpaid { background: var(--unpaid-soft); color: #8a3328; }
+.chip.upcoming { background: var(--cream-dark); color: var(--muted); }
 
 .empty {
   text-align: center;
@@ -411,9 +417,11 @@ a { color: var(--sage-dark); }
 
 .fab-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
 }
+.fab-row .btn { flex: 1 1 28%; }
 
 /* Bills */
 .bill-card {

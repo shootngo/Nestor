@@ -144,3 +144,53 @@ export function uid() {
   if (crypto && crypto.randomUUID) return crypto.randomUUID();
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
+
+const INTERVAL_UNITS = { days: "day", weeks: "week", months: "month" };
+
+export function addInterval(date, count, unit) {
+  const src = date instanceof Date ? date : parseYmd(date);
+  const n = Math.max(1, Number(count) || 1);
+  const d = new Date(src.getFullYear(), src.getMonth(), src.getDate());
+  if (unit === "weeks") {
+    d.setDate(d.getDate() + n * 7);
+    return d;
+  }
+  if (unit === "months") {
+    const day = d.getDate();
+    const result = new Date(d.getFullYear(), d.getMonth() + n, 1);
+    const last = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+    result.setDate(Math.min(day, last));
+    return result;
+  }
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+export function recurrenceLabel(task) {
+  const n = Number(task && task.intervalCount) || 0;
+  if (n <= 0) return "";
+  const unit = INTERVAL_UNITS[task.intervalUnit] ? task.intervalUnit : "days";
+  const base = INTERVAL_UNITS[unit];
+  return n === 1 ? `Every ${base}` : `Every ${n} ${base}s`;
+}
+
+/**
+ * Color on calendar: red overdue, yellow due within ~7 days, green done/handled.
+ */
+export function maintenanceStatus(task, today = new Date()) {
+  if (task.lastCompleted && !task.nextDue) {
+    return { tone: "paid", label: "Done" };
+  }
+  if (!task.nextDue) {
+    return { tone: "upcoming", label: "Unscheduled" };
+  }
+  const due = parseYmd(task.nextDue);
+  const done = task.lastCompleted ? parseYmd(task.lastCompleted) : null;
+  if (done && startOfDay(done).getTime() >= startOfDay(due).getTime()) {
+    return { tone: "paid", label: "Done", due };
+  }
+  const delta = daysBetween(due, today);
+  if (delta < 0) return { tone: "unpaid", label: "Overdue", due };
+  if (delta <= 7) return { tone: "due", label: "Due soon", due };
+  return { tone: "upcoming", label: "Upcoming", due };
+}

@@ -1,18 +1,80 @@
 import { db, isConfigured } from "./firebase.js";
 import { actor, isPreview } from "./auth.js";
-import { nowIso, uid } from "./util.js";
+import { addInterval, nowIso, parseYmd, uid, ymd } from "./util.js";
 
 const LOCAL_KEY = "nestor-local-v1";
+const COLLECTIONS = ["bills", "events", "payments", "maintenance"];
 
 let bills = [];
 let events = [];
 let payments = [];
+let maintenance = [];
 const listeners = new Set();
 let unsubs = [];
 
 function emit() {
-  const snap = { bills, events, payments };
+  const snap = { bills, events, payments, maintenance };
   for (const fn of listeners) fn(snap);
+}
+
+function getList(name) {
+  if (name === "bills") return bills;
+  if (name === "events") return events;
+  if (name === "payments") return payments;
+  if (name === "maintenance") return maintenance;
+  return [];
+}
+
+function setList(name, list) {
+  if (name === "bills") bills = list;
+  if (name === "events") events = list;
+  if (name === "payments") payments = list;
+  if (name === "maintenance") maintenance = list;
+}
+
+function shiftYmd(days) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return ymd(d);
+}
+
+function seedMaintenance(me) {
+  return [
+    {
+      id: uid(),
+      name: "Change HVAC filter",
+      notes: "Hall closet — 20×25×1",
+      intervalCount: 90,
+      intervalUnit: "days",
+      nextDue: shiftYmd(5),
+      lastCompleted: shiftYmd(-85),
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+    {
+      id: uid(),
+      name: "Pest spray",
+      notes: "Exterior + garage",
+      intervalCount: 3,
+      intervalUnit: "months",
+      nextDue: shiftYmd(-4),
+      lastCompleted: shiftYmd(-95),
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+    {
+      id: uid(),
+      name: "Clean gutters",
+      notes: "",
+      intervalCount: 6,
+      intervalUnit: "months",
+      nextDue: shiftYmd(28),
+      lastCompleted: "",
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+  ];
 }
 
 function seedLocal() {
@@ -90,6 +152,7 @@ function seedLocal() {
         createdAt: nowIso(),
       },
     ],
+    maintenance: seedMaintenance(me),
   };
   localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
   return data;
@@ -98,7 +161,11 @@ function seedLocal() {
 function loadLocal() {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data.maintenance)) data.maintenance = seedMaintenance(actor());
+      return data;
+    }
   } catch (err) {
     console.warn(err);
   }
@@ -106,7 +173,7 @@ function loadLocal() {
 }
 
 function saveLocal() {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify({ bills, events, payments }));
+  localStorage.setItem(LOCAL_KEY, JSON.stringify({ bills, events, payments, maintenance }));
   emit();
 }
 
@@ -116,7 +183,7 @@ function mapDocs(snap) {
 
 export function subscribe(fn) {
   listeners.add(fn);
-  fn({ bills, events, payments });
+  fn({ bills, events, payments, maintenance });
   return () => listeners.delete(fn);
 }
 
@@ -127,24 +194,17 @@ export async function startStore() {
     bills = data.bills || [];
     events = data.events || [];
     payments = data.payments || [];
+    maintenance = data.maintenance || [];
     emit();
     return;
   }
   const firestore = db();
-  unsubs = [
-    firestore.collection("bills").onSnapshot((snap) => {
-      bills = mapDocs(snap);
+  unsubs = COLLECTIONS.map((name) =>
+    firestore.collection(name).onSnapshot((snap) => {
+      setList(name, mapDocs(snap));
       emit();
-    }),
-    firestore.collection("events").onSnapshot((snap) => {
-      events = mapDocs(snap);
-      emit();
-    }),
-    firestore.collection("payments").onSnapshot((snap) => {
-      payments = mapDocs(snap);
-      emit();
-    }),
-  ];
+    })
+  );
 }
 
 export function stopStore() {
@@ -174,14 +234,11 @@ function stampUpdate(existing) {
 
 async function writeDoc(collection, record) {
   if (isPreview() || !isConfigured()) {
-    const listName = collection;
-    const list = listName === "bills" ? bills : listName === "events" ? events : payments;
+    const list = getList(collection).slice();
     const idx = list.findIndex((x) => x.id === record.id);
     if (idx >= 0) list[idx] = record;
     else list.push(record);
-    if (listName === "bills") bills = list;
-    if (listName === "events") events = list;
-    if (listName === "payments") payments = list;
+    setList(collection, list);
     saveLocal();
     return record;
   }
@@ -192,9 +249,10 @@ async function writeDoc(collection, record) {
 
 async function removeDoc(collection, id) {
   if (isPreview() || !isConfigured()) {
-    if (collection === "bills") bills = bills.filter((x) => x.id !== id);
-    if (collection === "events") events = events.filter((x) => x.id !== id);
-    if (collection === "payments") payments = payments.filter((x) => x.id !== id);
+    setList(
+      collection,
+      getList(collection).filter((x) => x.id !== id)
+    );
     saveLocal();
     return;
   }
@@ -265,6 +323,51 @@ export async function deletePayment(id) {
   await removeDoc("payments", id);
 }
 
+function normalizeInterval(input) {
+  const count = Math.max(0, Math.floor(Number(input.intervalCount) || 0));
+  const unit = ["days", "weeks", "months"].includes(input.intervalUnit) ? input.intervalUnit : "days";
+  return { intervalCount: count, intervalUnit: unit };
+}
+
+export async function saveMaintenance(input) {
+  const existing = maintenance.find((t) => t.id === input.id) || {};
+  const interval = normalizeInterval(input);
+  const record = {
+    id: input.id || uid(),
+    name: String(input.name || "").trim(),
+    notes: String(input.notes || "").trim(),
+    intervalCount: interval.intervalCount,
+    intervalUnit: interval.intervalUnit,
+    nextDue: String(input.nextDue || "").trim(),
+    lastCompleted: String(input.lastCompleted || "").trim(),
+    ...(input.id ? stampUpdate(existing) : stampNew()),
+  };
+  if (!record.name) throw new Error("Give the task a name.");
+  return writeDoc("maintenance", record);
+}
+
+export async function deleteMaintenance(id) {
+  await removeDoc("maintenance", id);
+}
+
+export async function markMaintenanceDone(id, completedOn) {
+  const existing = maintenance.find((t) => t.id === id);
+  if (!existing) throw new Error("Task not found.");
+  const doneOn = String(completedOn || ymd(new Date())).trim();
+  if (!doneOn) throw new Error("Pick the date you finished it.");
+  let nextDue = existing.nextDue || "";
+  if (existing.intervalCount > 0) {
+    nextDue = ymd(addInterval(parseYmd(doneOn), existing.intervalCount, existing.intervalUnit));
+  } else {
+    nextDue = "";
+  }
+  return saveMaintenance({
+    ...existing,
+    lastCompleted: doneOn,
+    nextDue,
+  });
+}
+
 export function snapshot() {
-  return { bills, events, payments };
+  return { bills, events, payments, maintenance };
 }
