@@ -534,12 +534,15 @@ a { color: var(--sage-dark); }
   color: #245528;
 }
 .shop-body {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
   min-width: 0;
   text-decoration: none;
   color: inherit;
 }
+.shop-body .chip { margin-top: 2px; }
 .shop-text { font-size: 1.02rem; }
 .shop-item.is-checked .shop-text {
   text-decoration: line-through;
