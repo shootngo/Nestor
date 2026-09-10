@@ -251,9 +251,10 @@ async function render() {
     renderVehicleForm(view, null, {
       save: async (input) => {
         try {
-          const rec = await saveVehicle(input);
+          // Never pass a route/reserved id — each add must create a new doc.
+          await saveVehicle({ ...input, id: "" });
           toast("Vehicle added");
-          location.hash = `#/vehicles/${rec.id}`;
+          location.hash = "#/vehicles";
         } catch (err) {
           toast(err.message || "Could not save");
         }

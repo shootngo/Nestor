@@ -81,6 +81,17 @@ describe("mergeServerDocs", () => {
     assert.equal(pending.size, 1);
   });
 
+  it("keeps two just-saved vehicles when the snapshot has not caught up", () => {
+    const pending = new Map();
+    rememberSet(pending, "vehicles", { id: "crv", name: "CR-V" });
+    rememberSet(pending, "vehicles", { id: "truck", name: "F-150" });
+    const merged = mergeServerDocs([], pending, "vehicles");
+    assert.deepEqual(
+      merged.map((v) => v.id).sort(),
+      ["crv", "truck"]
+    );
+  });
+
   it("clears a pending delete after the server list no longer has the id", () => {
     const pending = new Map();
     rememberDelete(pending, "maintenance", "gone");

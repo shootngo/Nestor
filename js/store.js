@@ -363,7 +363,9 @@ function saveLocal() {
 }
 
 function mapDocs(snap) {
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Firestore's document id is canonical. Spreading data first avoids a stored
+  // `id` field (or a reserved path like "new") collapsing many docs into one.
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
 }
 
 export function subscribe(fn) {
@@ -604,17 +606,34 @@ export async function markMaintenanceDone(id, completedOn) {
   });
 }
 
+/** Hash path segments that must never be used as a vehicles/{id} document id. */
+export const RESERVED_VEHICLE_IDS = new Set(["new", "edit", "tasks"]);
+
+/**
+ * Pick a Firestore document id for a vehicle write.
+ * Blank or reserved ids ("new", "edit", "tasks") always create a fresh id so
+ * Add vehicle cannot overwrite a singleton doc at vehicles/new.
+ */
+export function assignVehicleDocId(inputId, makeId = uid) {
+  const id = String(inputId ?? "").trim();
+  if (!id || RESERVED_VEHICLE_IDS.has(id)) return makeId();
+  return id;
+}
+
 export async function saveVehicle(input) {
-  const existing = vehicles.find((v) => v.id === input.id) || {};
+  const requested = String(input.id ?? "").trim();
+  const id = assignVehicleDocId(requested);
+  const existing = vehicles.find((v) => v.id === id) || {};
+  const isUpdate = Boolean(requested && requested === id);
   const record = {
-    id: input.id || uid(),
+    id,
     name: String(input.name || "").trim(),
     year: String(input.year || "").trim(),
     make: String(input.make || "").trim(),
     model: String(input.model || "").trim(),
     plate: String(input.plate || "").trim(),
     notes: String(input.notes || "").trim(),
-    ...(input.id ? stampUpdate(existing) : stampNew()),
+    ...(isUpdate ? stampUpdate(existing) : stampNew()),
   };
   if (!record.name) throw new Error("Give the vehicle a name.");
   return writeDoc("vehicles", record);

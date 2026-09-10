@@ -1,5 +1,5 @@
 /* Nestor service worker — cache name must stay unique vs Nickey / Rosa / Stashr */
-const CACHE = "nestor-v8";
+const CACHE = "nestor-v9";
 const SHELL = [
   "./",
   "./index.html",

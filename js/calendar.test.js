@@ -71,6 +71,30 @@ describe("itemsOnDay vehicle tasks", () => {
     assert.equal(items[0].tone, "paid");
     assert.match(markClass(items[0]), /is-done/);
   });
+
+  it("shows tasks for two different vehicles on the same day", () => {
+    const twoCars = [
+      { id: "crv", name: "CR-V" },
+      { id: "truck", name: "F-150" },
+    ];
+    const twoTasks = [
+      { id: "oil-crv", vehicleId: "crv", name: "Oil change", kind: "oil", nextDue: "2026-09-10" },
+      { id: "tag-truck", vehicleId: "truck", name: "Tag renewal", kind: "tag", nextDue: "2026-09-10" },
+    ];
+    const items = itemsOnDay(cellFor("2026-09-10"), { vehicles: twoCars, vehicleTasks: twoTasks }, today);
+    const vehicleItems = items.filter((it) => it.kind === "vehicle");
+    assert.equal(vehicleItems.length, 2);
+    assert.equal(
+      vehicleItems.find((it) => it.id === "oil-crv").title,
+      "CR-V · Oil change"
+    );
+    assert.equal(
+      vehicleItems.find((it) => it.id === "tag-truck").title,
+      "F-150 · Tag renewal"
+    );
+    assert.match(markClass(vehicleItems[0]), /cat-vehicle/);
+    assert.match(markClass(vehicleItems[1]), /cat-vehicle/);
+  });
 });
 
 describe("ymd helper stays local-date safe", () => {
