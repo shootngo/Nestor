@@ -4,27 +4,50 @@ import { mergeServerDocs, rememberDelete, rememberSet, upsertInto } from "./stor
 import { addInterval, nowIso, parseYmd, uid, ymd } from "./util.js";
 
 const LOCAL_KEY = "nestor-local-v1";
-const COLLECTIONS = Object.freeze(["bills", "events", "payments", "maintenance"]);
+const COLLECTIONS = Object.freeze([
+  "bills",
+  "events",
+  "payments",
+  "maintenance",
+  "vehicles",
+  "vehicleTasks",
+]);
 
 let bills = [];
 let events = [];
 let payments = [];
 let maintenance = [];
+let vehicles = [];
+let vehicleTasks = [];
 const listeners = new Set();
 const errorListeners = new Set();
 let unsubs = [];
 let storeGen = 0;
-let ready = { bills: false, events: false, payments: false, maintenance: false };
+let ready = emptyReady();
 let storeErrors = {};
 /** Local writes waiting for onSnapshot to catch up (`collection:id` → set|delete). */
 const pendingWrites = new Map();
 
 function emptyReady() {
-  return { bills: false, events: false, payments: false, maintenance: false };
+  return {
+    bills: false,
+    events: false,
+    payments: false,
+    maintenance: false,
+    vehicles: false,
+    vehicleTasks: false,
+  };
 }
 
 function allReady() {
-  return { bills: true, events: true, payments: true, maintenance: true };
+  return {
+    bills: true,
+    events: true,
+    payments: true,
+    maintenance: true,
+    vehicles: true,
+    vehicleTasks: true,
+  };
 }
 
 function snapshotData() {
@@ -33,6 +56,8 @@ function snapshotData() {
     events,
     payments,
     maintenance,
+    vehicles,
+    vehicleTasks,
     ready: { ...ready },
     errors: { ...storeErrors },
   };
@@ -67,6 +92,8 @@ function getList(name) {
   if (name === "events") return events;
   if (name === "payments") return payments;
   if (name === "maintenance") return maintenance;
+  if (name === "vehicles") return vehicles;
+  if (name === "vehicleTasks") return vehicleTasks;
   return [];
 }
 
@@ -75,6 +102,8 @@ function setList(name, list) {
   if (name === "events") events = list;
   if (name === "payments") payments = list;
   if (name === "maintenance") maintenance = list;
+  if (name === "vehicles") vehicles = list;
+  if (name === "vehicleTasks") vehicleTasks = list;
 }
 
 function upsertLocal(collection, record) {
@@ -99,6 +128,91 @@ function shiftYmd(days) {
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + days);
   return ymd(d);
+}
+
+function seedVehicles(me) {
+  const crvId = uid();
+  const truckId = uid();
+  return {
+    vehicles: [
+      {
+        id: crvId,
+        name: "CR-V",
+        year: "2018",
+        make: "Honda",
+        model: "CR-V",
+        plate: "",
+        notes: "",
+        createdBy: me,
+        createdAt: nowIso(),
+      },
+      {
+        id: truckId,
+        name: "F-150",
+        year: "2016",
+        make: "Ford",
+        model: "F-150",
+        plate: "",
+        notes: "",
+        createdBy: me,
+        createdAt: nowIso(),
+      },
+    ],
+    vehicleTasks: [
+      {
+        id: uid(),
+        vehicleId: crvId,
+        name: "Oil change",
+        kind: "oil",
+        notes: "Full synthetic 0W-20",
+        intervalCount: 6,
+        intervalUnit: "months",
+        nextDue: shiftYmd(4),
+        lastCompleted: shiftYmd(-180),
+        createdBy: me,
+        createdAt: nowIso(),
+      },
+      {
+        id: uid(),
+        vehicleId: crvId,
+        name: "Tag renewal",
+        kind: "tag",
+        notes: "",
+        intervalCount: 1,
+        intervalUnit: "years",
+        nextDue: shiftYmd(22),
+        lastCompleted: shiftYmd(-340),
+        createdBy: me,
+        createdAt: nowIso(),
+      },
+      {
+        id: uid(),
+        vehicleId: truckId,
+        name: "Oil change",
+        kind: "oil",
+        notes: "",
+        intervalCount: 5,
+        intervalUnit: "months",
+        nextDue: shiftYmd(-8),
+        lastCompleted: shiftYmd(-160),
+        createdBy: me,
+        createdAt: nowIso(),
+      },
+      {
+        id: uid(),
+        vehicleId: truckId,
+        name: "Tag renewal",
+        kind: "tag",
+        notes: "",
+        intervalCount: 1,
+        intervalUnit: "years",
+        nextDue: shiftYmd(48),
+        lastCompleted: "",
+        createdBy: me,
+        createdAt: nowIso(),
+      },
+    ],
+  };
 }
 
 function seedMaintenance(me) {
@@ -215,6 +329,7 @@ function seedLocal() {
       },
     ],
     maintenance: seedMaintenance(me),
+    ...seedVehicles(me),
   };
   localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
   return data;
@@ -226,6 +341,11 @@ function loadLocal() {
     if (raw) {
       const data = JSON.parse(raw);
       if (!Array.isArray(data.maintenance)) data.maintenance = seedMaintenance(actor());
+      if (!Array.isArray(data.vehicles) || !Array.isArray(data.vehicleTasks)) {
+        const seeded = seedVehicles(actor());
+        if (!Array.isArray(data.vehicles)) data.vehicles = seeded.vehicles;
+        if (!Array.isArray(data.vehicleTasks)) data.vehicleTasks = seeded.vehicleTasks;
+      }
       return data;
     }
   } catch (err) {
@@ -235,7 +355,10 @@ function loadLocal() {
 }
 
 function saveLocal() {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify({ bills, events, payments, maintenance }));
+  localStorage.setItem(
+    LOCAL_KEY,
+    JSON.stringify({ bills, events, payments, maintenance, vehicles, vehicleTasks })
+  );
   emit();
 }
 
@@ -278,12 +401,14 @@ export async function startStore() {
     events = data.events || [];
     payments = data.payments || [];
     maintenance = data.maintenance || [];
+    vehicles = data.vehicles || [];
+    vehicleTasks = data.vehicleTasks || [];
     ready = allReady();
     emit();
     return;
   }
   const firestore = db();
-  // Always listen to every household collection, including maintenance.
+  // Always listen to every household collection, including vehicles.
   unsubs = COLLECTIONS.map((name) =>
     firestore.collection(name).onSnapshot(
       (snap) => {
@@ -427,8 +552,17 @@ export async function deletePayment(id) {
 
 function normalizeInterval(input) {
   const count = Math.max(0, Math.floor(Number(input.intervalCount) || 0));
-  const unit = ["days", "weeks", "months"].includes(input.intervalUnit) ? input.intervalUnit : "days";
+  const unit = ["days", "weeks", "months", "years"].includes(input.intervalUnit)
+    ? input.intervalUnit
+    : "days";
   return { intervalCount: count, intervalUnit: unit };
+}
+
+const TASK_KINDS = new Set(["oil", "tag", "inspection", "tires", "other"]);
+
+function normalizeTaskKind(kind) {
+  const value = String(kind || "").trim().toLowerCase();
+  return TASK_KINDS.has(value) ? value : "other";
 }
 
 export async function saveMaintenance(input) {
@@ -464,6 +598,70 @@ export async function markMaintenanceDone(id, completedOn) {
     nextDue = "";
   }
   return saveMaintenance({
+    ...existing,
+    lastCompleted: doneOn,
+    nextDue,
+  });
+}
+
+export async function saveVehicle(input) {
+  const existing = vehicles.find((v) => v.id === input.id) || {};
+  const record = {
+    id: input.id || uid(),
+    name: String(input.name || "").trim(),
+    year: String(input.year || "").trim(),
+    make: String(input.make || "").trim(),
+    model: String(input.model || "").trim(),
+    plate: String(input.plate || "").trim(),
+    notes: String(input.notes || "").trim(),
+    ...(input.id ? stampUpdate(existing) : stampNew()),
+  };
+  if (!record.name) throw new Error("Give the vehicle a name.");
+  return writeDoc("vehicles", record);
+}
+
+export async function deleteVehicle(id) {
+  const related = vehicleTasks.filter((t) => t.vehicleId === id);
+  for (const t of related) await removeDoc("vehicleTasks", t.id);
+  await removeDoc("vehicles", id);
+}
+
+export async function saveVehicleTask(input) {
+  const existing = vehicleTasks.find((t) => t.id === input.id) || {};
+  const interval = normalizeInterval(input);
+  const record = {
+    id: input.id || uid(),
+    vehicleId: String(input.vehicleId || existing.vehicleId || "").trim(),
+    name: String(input.name || "").trim(),
+    kind: normalizeTaskKind(input.kind || existing.kind),
+    notes: String(input.notes || "").trim(),
+    intervalCount: interval.intervalCount,
+    intervalUnit: interval.intervalUnit,
+    nextDue: String(input.nextDue || "").trim(),
+    lastCompleted: String(input.lastCompleted || "").trim(),
+    ...(input.id ? stampUpdate(existing) : stampNew()),
+  };
+  if (!record.vehicleId) throw new Error("Pick a vehicle.");
+  if (!record.name) throw new Error("Give the reminder a name.");
+  return writeDoc("vehicleTasks", record);
+}
+
+export async function deleteVehicleTask(id) {
+  await removeDoc("vehicleTasks", id);
+}
+
+export async function markVehicleTaskDone(id, completedOn) {
+  const existing = vehicleTasks.find((t) => t.id === id);
+  if (!existing) throw new Error("Reminder not found.");
+  const doneOn = String(completedOn || ymd(new Date())).trim();
+  if (!doneOn) throw new Error("Pick the date you finished it.");
+  let nextDue = existing.nextDue || "";
+  if (existing.intervalCount > 0) {
+    nextDue = ymd(addInterval(parseYmd(doneOn), existing.intervalCount, existing.intervalUnit));
+  } else {
+    nextDue = "";
+  }
+  return saveVehicleTask({
     ...existing,
     lastCompleted: doneOn,
     nextDue,

@@ -39,6 +39,9 @@ export async function startAuth() {
     return;
   }
   auth().onAuthStateChanged(async (user) => {
+    // Local preview is not a Firebase session — do not let a later null
+    // auth event kick the user back to the sign-in screen.
+    if (isPreview()) return;
     if (!user) {
       current = null;
       emit();

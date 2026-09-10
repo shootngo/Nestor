@@ -146,7 +146,7 @@ export function uid() {
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-const INTERVAL_UNITS = { days: "day", weeks: "week", months: "month" };
+const INTERVAL_UNITS = { days: "day", weeks: "week", months: "month", years: "year" };
 
 export function addInterval(date, count, unit) {
   const src = date instanceof Date ? date : parseYmd(date);
@@ -156,15 +156,32 @@ export function addInterval(date, count, unit) {
     d.setDate(d.getDate() + n * 7);
     return d;
   }
-  if (unit === "months") {
+  if (unit === "months" || unit === "years") {
+    const months = unit === "years" ? n * 12 : n;
     const day = d.getDate();
-    const result = new Date(d.getFullYear(), d.getMonth() + n, 1);
+    const result = new Date(d.getFullYear(), d.getMonth() + months, 1);
     const last = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
     result.setDate(Math.min(day, last));
     return result;
   }
   d.setDate(d.getDate() + n);
   return d;
+}
+
+export function vehicleLabel(vehicle) {
+  if (!vehicle) return "Vehicle";
+  const name = String(vehicle.name || "").trim();
+  if (name) return name;
+  const bits = [vehicle.year, vehicle.make, vehicle.model].filter((x) => String(x || "").trim()).join(" ");
+  return bits || "Vehicle";
+}
+
+export function vehicleSubtitle(vehicle) {
+  if (!vehicle) return "";
+  const bits = [vehicle.year, vehicle.make, vehicle.model].filter((x) => String(x || "").trim()).join(" ");
+  const plate = String(vehicle.plate || "").trim();
+  if (bits && plate) return `${bits} · ${plate}`;
+  return bits || plate;
 }
 
 export function recurrenceLabel(task) {
@@ -176,7 +193,7 @@ export function recurrenceLabel(task) {
 }
 
 /**
- * Maintenance status for list chips and calendar item copy.
+ * Status for list chips and calendar item copy (home + vehicle tasks).
  * Calendar dots/rails use category color; status is a secondary cue.
  */
 export function maintenanceStatus(task, today = new Date()) {

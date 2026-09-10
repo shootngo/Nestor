@@ -59,6 +59,17 @@ describe("mergeServerDocs", () => {
     assert.equal(pending.size, 1);
   });
 
+  it("keeps a just-saved vehicle task when the snapshot has not caught up", () => {
+    const pending = new Map();
+    const rec = { id: "oil-1", vehicleId: "crv", name: "Oil change", nextDue: "2026-09-14" };
+    rememberSet(pending, "vehicleTasks", rec);
+    const merged = mergeServerDocs([], pending, "vehicleTasks");
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].name, "Oil change");
+    const other = mergeServerDocs([], pending, "vehicles");
+    assert.equal(other.length, 0);
+  });
+
   it("hides a just-deleted id until the snapshot drops it", () => {
     const pending = new Map();
     rememberDelete(pending, "maintenance", "gone");

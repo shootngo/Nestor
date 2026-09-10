@@ -23,5 +23,11 @@ service cloud.firestore {
     match /maintenance/{id} {
       allow read, write: if householdMember();
     }
+    match /vehicles/{id} {
+      allow read, write: if householdMember();
+    }
+    match /vehicleTasks/{id} {
+      allow read, write: if householdMember();
+    }
   }
 }
