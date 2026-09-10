@@ -41,7 +41,7 @@ describe("itemsOnDay vehicle tasks", () => {
     assert.equal(oil.title, "CR-V · Oil change");
     assert.equal(oil.href, "#/vehicles/crv/tasks/oil-1");
     assert.equal(oil.statusLabel, "Due soon");
-    assert.match(markClass(oil), /vehicle/);
+    assert.match(markClass(oil), /cat-vehicle/);
 
     const tagDay = itemsOnDay(cellFor("2026-09-10"), { vehicles, vehicleTasks }, today);
     const tag = tagDay.find((it) => it.id === "tag-1");
