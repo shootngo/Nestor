@@ -542,7 +542,12 @@ a { color: var(--sage-dark); }
   text-decoration: none;
   color: inherit;
 }
-.shop-body .chip { margin-top: 2px; }
+.shop-body .chip,
+.shop-item .chip {
+  margin-top: 2px;
+  width: max-content;
+  max-width: 100%;
+}
 .shop-text { font-size: 1.02rem; }
 .shop-item.is-checked .shop-text {
   text-decoration: line-through;
