@@ -21,6 +21,7 @@ import {
   startStore,
   stopStore,
   subscribe,
+  onStoreError,
 } from "./store.js";
 import { escapeHtml, firebaseConfigured, householdEmails, ymd } from "./util.js";
 import { renderCalendar } from "./calendar.js";
@@ -385,11 +386,17 @@ async function boot() {
 
   if ("serviceWorker" in navigator) {
     try {
-      await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+      const reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+      if (reg && reg.update) await reg.update();
     } catch (err) {
       console.warn("SW register failed", err);
     }
   }
+
+  onStoreError(({ collection, code, message }) => {
+    toast(`Could not load ${collection}${code ? ` (${code})` : ""}`);
+    console.warn("[Nestor] store error", collection, code, message);
+  });
 
   subscribe((snap) => {
     data = snap;
