@@ -372,11 +372,11 @@ a { color: var(--sage-dark); }
   justify-content: center;
 }
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--sage);
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.9);
 }
 .dot.cat-bill { background: var(--cat-bill); }
 .dot.cat-maintenance { background: var(--cat-maintenance); }
