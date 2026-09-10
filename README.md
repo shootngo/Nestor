@@ -8,13 +8,13 @@ Live (after GitHub Pages is on): https://shootngo.github.io/nestor/
 
 ## What is in sections 1–2
 
-- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v6`) so it never collides with Nickey, Rosa, or Stashr.
+- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v7`) so it never collides with Nickey, Rosa, or Stashr.
 - **Icon:** house in a nest (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`).
 - **Splash:** egg hatching a house (`assets/splash.jpg`) — shown briefly on first load of a session.
 - **Theme:** sage, cream, nest browns.
-- **Calendar** month view. Bills and maintenance color **red** unpaid/overdue, **yellow** due within ~7 days, **green** paid/done. Events open a fillable detail page.
+- **Calendar** month view. Dots and day-sheet rails are colored by **category** (bills ember, home sage, events slate). Status (overdue / due soon / done) is a secondary cue. Events open a fillable detail page.
 - **Bills** with name, typical monthly amount, due day. Log amount paid per month. Simple Chart.js trend on the bill page.
-- **Home maintenance** recurring tasks (every N days/weeks/months, or just a next-due date). Mark done advances the next due. Same calendar colors as bills.
+- **Home maintenance** recurring tasks (every N days/weeks/months, or just a next-due date). Mark done advances the next due. Calendar marks use the home (sage) category color.
 - **Attribution** on bills, payments, events, and maintenance (`createdBy` uid / email / displayName).
 
 ## Run locally
