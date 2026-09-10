@@ -27,7 +27,29 @@ function dueLine(task) {
   return "No due date";
 }
 
-export function renderMaintenanceList(root, { maintenance }, today = new Date()) {
+export function renderMaintenanceList(root, { maintenance, ready, errors }, today = new Date()) {
+  const loaded = !ready || ready.maintenance;
+  const err = errors && errors.maintenance;
+  if (err) {
+    root.innerHTML = `
+      <div class="section-title">
+        <h2>Home Maintenance</h2>
+        <a class="btn btn-ghost" href="#/maintenance/new">Add task</a>
+      </div>
+      <div class="empty card"><b>Could not load tasks</b>${escapeHtml(err)}</div>
+    `;
+    return;
+  }
+  if (!loaded) {
+    root.innerHTML = `
+      <div class="section-title">
+        <h2>Home Maintenance</h2>
+        <a class="btn btn-ghost" href="#/maintenance/new">Add task</a>
+      </div>
+      <div class="empty card"><b>Loading…</b>Checking household upkeep.</div>
+    `;
+    return;
+  }
   const tasks = sortTasks(maintenance || [], today);
   root.innerHTML = `
     <div class="section-title">

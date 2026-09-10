@@ -1,20 +1,65 @@
 import { db, isConfigured } from "./firebase.js";
 import { actor, isPreview } from "./auth.js";
+import { mergeServerDocs, rememberDelete, rememberSet, upsertInto } from "./store-sync.js";
 import { addInterval, nowIso, parseYmd, uid, ymd } from "./util.js";
 
 const LOCAL_KEY = "nestor-local-v1";
-const COLLECTIONS = ["bills", "events", "payments", "maintenance"];
+const COLLECTIONS = Object.freeze(["bills", "events", "payments", "maintenance"]);
 
 let bills = [];
 let events = [];
 let payments = [];
 let maintenance = [];
 const listeners = new Set();
+const errorListeners = new Set();
 let unsubs = [];
+let storeGen = 0;
+let ready = { bills: false, events: false, payments: false, maintenance: false };
+let storeErrors = {};
+/** Local writes waiting for onSnapshot to catch up (`collection:id` → set|delete). */
+const pendingWrites = new Map();
+
+function emptyReady() {
+  return { bills: false, events: false, payments: false, maintenance: false };
+}
+
+function allReady() {
+  return { bills: true, events: true, payments: true, maintenance: true };
+}
+
+function snapshotData() {
+  return {
+    bills,
+    events,
+    payments,
+    maintenance,
+    ready: { ...ready },
+    errors: { ...storeErrors },
+  };
+}
 
 function emit() {
-  const snap = { bills, events, payments, maintenance };
+  const snap = snapshotData();
   for (const fn of listeners) fn(snap);
+}
+
+export function onStoreError(fn) {
+  errorListeners.add(fn);
+  return () => errorListeners.delete(fn);
+}
+
+function reportError(collection, err) {
+  const code = (err && err.code) || "";
+  const message = (err && err.message) || String(err);
+  storeErrors[collection] = code ? `${code}: ${message}` : message;
+  console.error(`[Nestor] Firestore ${collection} failed`, err);
+  for (const fn of errorListeners) {
+    try {
+      fn({ collection, code, message, err });
+    } catch (_) {
+      /* ignore */
+    }
+  }
 }
 
 function getList(name) {
@@ -30,6 +75,23 @@ function setList(name, list) {
   if (name === "events") events = list;
   if (name === "payments") payments = list;
   if (name === "maintenance") maintenance = list;
+}
+
+function upsertLocal(collection, record) {
+  rememberSet(pendingWrites, collection, record);
+  setList(collection, upsertInto(getList(collection), record));
+}
+
+function removeLocal(collection, id) {
+  rememberDelete(pendingWrites, collection, id);
+  setList(
+    collection,
+    getList(collection).filter((x) => x.id !== id)
+  );
+}
+
+function applyServerDocs(collection, serverList) {
+  setList(collection, mergeServerDocs(serverList, pendingWrites, collection));
 }
 
 function shiftYmd(days) {
@@ -183,31 +245,71 @@ function mapDocs(snap) {
 
 export function subscribe(fn) {
   listeners.add(fn);
-  fn({ bills, events, payments, maintenance });
+  fn(snapshotData());
   return () => listeners.delete(fn);
 }
 
+function useLocalStore() {
+  return isPreview() || !isConfigured();
+}
+
+function applyRemoteSnap(gen, name, snap) {
+  if (gen !== storeGen) return;
+  applyServerDocs(name, mapDocs(snap));
+  ready[name] = true;
+  delete storeErrors[name];
+  emit();
+}
+
+function failRemote(gen, name, err) {
+  if (gen !== storeGen) return;
+  ready[name] = true;
+  reportError(name, err);
+  emit();
+}
+
 export async function startStore() {
+  const gen = ++storeGen;
   stopStore();
-  if (isPreview() || !isConfigured()) {
+  storeGen = gen;
+  if (useLocalStore()) {
     const data = loadLocal();
     bills = data.bills || [];
     events = data.events || [];
     payments = data.payments || [];
     maintenance = data.maintenance || [];
+    ready = allReady();
     emit();
     return;
   }
   const firestore = db();
+  // Always listen to every household collection, including maintenance.
   unsubs = COLLECTIONS.map((name) =>
-    firestore.collection(name).onSnapshot((snap) => {
-      setList(name, mapDocs(snap));
-      emit();
+    firestore.collection(name).onSnapshot(
+      (snap) => {
+        try {
+          applyRemoteSnap(gen, name, snap);
+        } catch (err) {
+          failRemote(gen, name, err);
+        }
+      },
+      (err) => failRemote(gen, name, err)
+    )
+  );
+  await Promise.all(
+    COLLECTIONS.map(async (name) => {
+      try {
+        const snap = await firestore.collection(name).get();
+        applyRemoteSnap(gen, name, snap);
+      } catch (err) {
+        failRemote(gen, name, err);
+      }
     })
   );
 }
 
 export function stopStore() {
+  storeGen += 1;
   for (const u of unsubs) {
     try {
       u();
@@ -216,6 +318,9 @@ export function stopStore() {
     }
   }
   unsubs = [];
+  pendingWrites.clear();
+  ready = emptyReady();
+  storeErrors = {};
 }
 
 function stampNew() {
@@ -233,30 +338,27 @@ function stampUpdate(existing) {
 }
 
 async function writeDoc(collection, record) {
-  if (isPreview() || !isConfigured()) {
-    const list = getList(collection).slice();
-    const idx = list.findIndex((x) => x.id === record.id);
-    if (idx >= 0) list[idx] = record;
-    else list.push(record);
-    setList(collection, list);
+  if (useLocalStore()) {
+    upsertLocal(collection, record);
     saveLocal();
     return record;
   }
   const ref = db().collection(collection).doc(record.id);
   await ref.set(record, { merge: true });
+  upsertLocal(collection, record);
+  emit();
   return record;
 }
 
 async function removeDoc(collection, id) {
-  if (isPreview() || !isConfigured()) {
-    setList(
-      collection,
-      getList(collection).filter((x) => x.id !== id)
-    );
+  if (useLocalStore()) {
+    removeLocal(collection, id);
     saveLocal();
     return;
   }
   await db().collection(collection).doc(id).delete();
+  removeLocal(collection, id);
+  emit();
 }
 
 export async function saveBill(input) {
@@ -369,5 +471,5 @@ export async function markMaintenanceDone(id, completedOn) {
 }
 
 export function snapshot() {
-  return { bills, events, payments, maintenance };
+  return snapshotData();
 }
