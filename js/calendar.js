@@ -157,27 +157,32 @@ export function renderCalendar(root, state, handlers) {
       ${cells
         .map((cell) => {
           const items = itemsOnDay(cell, dayState, today);
+          const fill = pickDayFill(items);
           const classes = ["day"];
           if (!cell.inMonth) classes.push("is-out");
           if (cell.ymd === todayYmd) classes.push("is-today");
           if (cell.ymd === selected) classes.push("is-selected");
-          const dots = items
-            .slice(0, 4)
+          if (fill.fillClass) classes.push(fill.fillClass);
+          const dots = fill.secondary
+            .slice(0, 3)
             .map((it) => `<span class="dot ${markClasses(it)}"></span>`)
             .join("");
-          return `<button class="${classes.join(" ")}" data-ymd="${cell.ymd}">
+          return `<button class="${classes.join(" ")}" data-ymd="${cell.ymd}"${
+            fill.fillKind ? ` data-fill="${fill.fillKind}"` : ""
+          }>
             <span class="n">${cell.date.getDate()}</span>
-            <span class="dots">${dots}</span>
+            ${dots ? `<span class="dots">${dots}</span>` : ""}
           </button>`;
         })
         .join("")}
     </div>
     <div class="legend">
-      <span><i class="dot cat-bill"></i>Bills</span>
-      <span><i class="dot cat-maintenance"></i>Home</span>
-      <span><i class="dot cat-event"></i>Events</span>
-      <span><i class="dot cat-vehicle"></i>Vehicle</span>
-      <span class="legend-note">Ring = overdue · faded = done · chips show due soon</span>
+      <span class="legend-lead">Day color = category</span>
+      <span><i class="swatch fill-bill"></i>Bills</span>
+      <span><i class="swatch fill-maintenance"></i>Home</span>
+      <span><i class="swatch fill-vehicle"></i>Vehicle</span>
+      <span><i class="swatch fill-event"></i>Events</span>
+      <span class="legend-note">Most urgent wins when a day has more than one · tiny dots show the rest</span>
     </div>
     <section class="day-sheet card">
       <h3>${escapeHtml(weekdayLong(selectedDate))}</h3>
@@ -236,6 +241,59 @@ export function markClasses(it) {
 
 /** Alias for tests and older hooks — same category + status classes. */
 export const markClass = markClasses;
+
+/**
+ * Urgency for the day-square fill. Highest wins; do not blend categories.
+ * overdue unpaid bill > overdue home > other overdue > due soon > upcoming/event > done/paid
+ */
+export function urgencyRank(it) {
+  if (it.tone === "unpaid" && it.kind === "bill") return 400;
+  if (it.tone === "unpaid" && it.kind === "maintenance") return 300;
+  if (it.tone === "unpaid") return 250;
+  if (it.tone === "due") return 200;
+  if (it.tone === "paid") return 50;
+  return 100;
+}
+
+function categoryTiebreak(kind) {
+  if (kind === "bill") return 4;
+  if (kind === "maintenance") return 3;
+  if (kind === "vehicle") return 2;
+  return 1;
+}
+
+/**
+ * Pick the category that paints the whole day cell, plus other categories as secondary dots.
+ */
+export function pickDayFill(items) {
+  const list = items || [];
+  if (!list.length) {
+    return { fillKind: null, fillClass: "", winner: null, secondary: [] };
+  }
+  let winner = list[0];
+  let best = urgencyRank(winner) * 10 + categoryTiebreak(winner.kind);
+  for (let i = 1; i < list.length; i++) {
+    const it = list[i];
+    const score = urgencyRank(it) * 10 + categoryTiebreak(it.kind);
+    if (score > best) {
+      winner = it;
+      best = score;
+    }
+  }
+  const seen = new Set();
+  const secondary = [];
+  for (const it of list) {
+    if (it.kind === winner.kind || seen.has(it.kind)) continue;
+    seen.add(it.kind);
+    secondary.push(it);
+  }
+  return {
+    fillKind: winner.kind,
+    fillClass: `fill-${winner.kind}`,
+    winner,
+    secondary,
+  };
+}
 
 function chipClass(it) {
   if (it.kind === "event") return "cat-event";
