@@ -119,6 +119,7 @@ export function renderVehicleDetail(root, vehicle, tasks, handlers, today = new 
   root.innerHTML = `
     <div class="section-title">
       <h2>${escapeHtml(vehicleLabel(vehicle))}</h2>
+      <a class="btn btn-ghost" href="#/vehicles/new">Add vehicle</a>
     </div>
     <div class="card kv" style="margin-bottom:12px">
       ${sub ? `<div><dt>Vehicle</dt><dd>${escapeHtml(sub)}</dd></div>` : ""}
@@ -127,6 +128,7 @@ export function renderVehicleDetail(root, vehicle, tasks, handlers, today = new 
       <p class="byline" style="margin:8px 0 0">${escapeHtml(byline(vehicle))}</p>
     </div>
     <div class="btn-row" style="margin-bottom:14px">
+      <a class="btn btn-ghost" href="#/vehicles">All vehicles</a>
       <a class="btn btn-ghost" href="#/vehicles/${vehicle.id}/edit">Edit</a>
       <button class="btn btn-danger" data-act="delete">Delete</button>
     </div>
@@ -156,32 +158,36 @@ export function renderVehicleDetail(root, vehicle, tasks, handlers, today = new 
             .join("")}</div>`
         : `<div class="empty card"><b>No reminders yet</b>Add an oil change or tag renewal — optional, whenever you want the nudge.</div>`
     }
+    <p class="fine" style="margin-top:12px"><a href="#/vehicles">Back to vehicles</a></p>
   `;
   root.querySelector('[data-act="delete"]').onclick = () => handlers.remove();
 }
 
 export function renderVehicleForm(root, vehicle, handlers) {
-  const isNew = !vehicle;
-  const value = vehicle || { name: "", year: "", make: "", model: "", plate: "", notes: "" };
+  const isNew = !vehicle || !vehicle.id || vehicle.id === "new";
+  const value = isNew ? { name: "", year: "", make: "", model: "", plate: "", notes: "" } : vehicle;
   root.innerHTML = `
-    <div class="section-title"><h2>${isNew ? "New vehicle" : "Edit vehicle"}</h2></div>
+    <div class="section-title">
+      <h2>${isNew ? "New vehicle" : "Edit vehicle"}</h2>
+      <a class="btn btn-ghost" href="#/vehicles">All vehicles</a>
+    </div>
     <form class="card" data-form="vehicle">
       <div class="field">
         <label for="veh-name">Name</label>
-        <input id="veh-name" name="name" required maxlength="80" value="${escapeHtml(value.name)}" placeholder="CR-V, the truck…" />
+        <input id="veh-name" name="name" required maxlength="80" value="${escapeHtml(value.name)}" placeholder="the truck, Jeannie’s car…" />
       </div>
       <div class="field">
         <label for="veh-year">Year (optional)</label>
-        <input id="veh-year" name="year" inputmode="numeric" maxlength="4" value="${escapeHtml(value.year || "")}" placeholder="2018" />
+        <input id="veh-year" name="year" inputmode="numeric" maxlength="4" value="${escapeHtml(value.year || "")}" placeholder="2016" />
       </div>
       <div class="field-split" style="margin-bottom:12px">
         <div class="field" style="margin:0">
           <label for="veh-make">Make</label>
-          <input id="veh-make" name="make" maxlength="40" value="${escapeHtml(value.make || "")}" placeholder="Honda" />
+          <input id="veh-make" name="make" maxlength="40" value="${escapeHtml(value.make || "")}" placeholder="Toyota" />
         </div>
         <div class="field" style="margin:0">
           <label for="veh-model">Model</label>
-          <input id="veh-model" name="model" maxlength="40" value="${escapeHtml(value.model || "")}" placeholder="CR-V" />
+          <input id="veh-model" name="model" maxlength="40" value="${escapeHtml(value.model || "")}" placeholder="Camry" />
         </div>
       </div>
       <div class="field">
@@ -194,12 +200,13 @@ export function renderVehicleForm(root, vehicle, handlers) {
       </div>
       <button class="btn btn-primary" type="submit">${isNew ? "Add vehicle" : "Save"}</button>
     </form>
+    <p class="fine" style="margin-top:12px"><a href="#/vehicles">Back to vehicles</a></p>
   `;
   root.querySelector("form").onsubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     handlers.save({
-      id: vehicle && vehicle.id,
+      id: isNew ? "" : vehicle.id,
       name: fd.get("name"),
       year: fd.get("year"),
       make: fd.get("make"),
