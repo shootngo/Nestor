@@ -174,20 +174,20 @@ export function renderVehicleForm(root, vehicle, handlers) {
     <form class="card" data-form="vehicle">
       <div class="field">
         <label for="veh-name">Name</label>
-        <input id="veh-name" name="name" required maxlength="80" value="${escapeHtml(value.name)}" placeholder="CR-V, the truck…" />
+        <input id="veh-name" name="name" required maxlength="80" value="${escapeHtml(value.name)}" placeholder="the truck, Jeannie’s car…" />
       </div>
       <div class="field">
         <label for="veh-year">Year (optional)</label>
-        <input id="veh-year" name="year" inputmode="numeric" maxlength="4" value="${escapeHtml(value.year || "")}" placeholder="2018" />
+        <input id="veh-year" name="year" inputmode="numeric" maxlength="4" value="${escapeHtml(value.year || "")}" placeholder="2016" />
       </div>
       <div class="field-split" style="margin-bottom:12px">
         <div class="field" style="margin:0">
           <label for="veh-make">Make</label>
-          <input id="veh-make" name="make" maxlength="40" value="${escapeHtml(value.make || "")}" placeholder="Honda" />
+          <input id="veh-make" name="make" maxlength="40" value="${escapeHtml(value.make || "")}" placeholder="Toyota" />
         </div>
         <div class="field" style="margin:0">
           <label for="veh-model">Model</label>
-          <input id="veh-model" name="model" maxlength="40" value="${escapeHtml(value.model || "")}" placeholder="CR-V" />
+          <input id="veh-model" name="model" maxlength="40" value="${escapeHtml(value.model || "")}" placeholder="Camry" />
         </div>
       </div>
       <div class="field">
