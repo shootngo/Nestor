@@ -11,6 +11,7 @@ const COLLECTIONS = Object.freeze([
   "maintenance",
   "vehicles",
   "vehicleTasks",
+  "shopping",
 ]);
 
 let bills = [];
@@ -19,6 +20,7 @@ let payments = [];
 let maintenance = [];
 let vehicles = [];
 let vehicleTasks = [];
+let shopping = [];
 const listeners = new Set();
 const errorListeners = new Set();
 let unsubs = [];
@@ -36,6 +38,7 @@ function emptyReady() {
     maintenance: false,
     vehicles: false,
     vehicleTasks: false,
+    shopping: false,
   };
 }
 
@@ -47,6 +50,7 @@ function allReady() {
     maintenance: true,
     vehicles: true,
     vehicleTasks: true,
+    shopping: true,
   };
 }
 
@@ -58,6 +62,7 @@ function snapshotData() {
     maintenance,
     vehicles,
     vehicleTasks,
+    shopping,
     ready: { ...ready },
     errors: { ...storeErrors },
   };
@@ -94,6 +99,7 @@ function getList(name) {
   if (name === "maintenance") return maintenance;
   if (name === "vehicles") return vehicles;
   if (name === "vehicleTasks") return vehicleTasks;
+  if (name === "shopping") return shopping;
   return [];
 }
 
@@ -104,6 +110,7 @@ function setList(name, list) {
   if (name === "maintenance") maintenance = list;
   if (name === "vehicles") vehicles = list;
   if (name === "vehicleTasks") vehicleTasks = list;
+  if (name === "shopping") shopping = list;
 }
 
 function upsertLocal(collection, record) {
@@ -253,6 +260,56 @@ function seedMaintenance(me) {
   ];
 }
 
+function seedShopping(me) {
+  return [
+    {
+      id: uid(),
+      text: "Milk",
+      aisle: "Dairy",
+      notes: "2%",
+      checked: false,
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+    {
+      id: uid(),
+      text: "Bananas",
+      aisle: "Produce",
+      notes: "",
+      checked: false,
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+    {
+      id: uid(),
+      text: "Paper towels",
+      aisle: "Household",
+      notes: "",
+      checked: false,
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+    {
+      id: uid(),
+      text: "Call about the HVAC quote",
+      aisle: "",
+      notes: "Filter size is in Home Maintenance",
+      checked: false,
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+    {
+      id: uid(),
+      text: "Coffee",
+      aisle: "Pantry",
+      notes: "",
+      checked: true,
+      createdBy: me,
+      createdAt: nowIso(),
+    },
+  ];
+}
+
 function seedLocal() {
   const me = actor();
   const today = new Date();
@@ -329,6 +386,7 @@ function seedLocal() {
       },
     ],
     maintenance: seedMaintenance(me),
+    shopping: seedShopping(me),
     ...seedVehicles(me),
   };
   localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
@@ -346,6 +404,7 @@ function loadLocal() {
         if (!Array.isArray(data.vehicles)) data.vehicles = seeded.vehicles;
         if (!Array.isArray(data.vehicleTasks)) data.vehicleTasks = seeded.vehicleTasks;
       }
+      if (!Array.isArray(data.shopping)) data.shopping = seedShopping(actor());
       return data;
     }
   } catch (err) {
@@ -357,7 +416,7 @@ function loadLocal() {
 function saveLocal() {
   localStorage.setItem(
     LOCAL_KEY,
-    JSON.stringify({ bills, events, payments, maintenance, vehicles, vehicleTasks })
+    JSON.stringify({ bills, events, payments, maintenance, vehicles, vehicleTasks, shopping })
   );
   emit();
 }
@@ -405,12 +464,13 @@ export async function startStore() {
     maintenance = data.maintenance || [];
     vehicles = data.vehicles || [];
     vehicleTasks = data.vehicleTasks || [];
+    shopping = data.shopping || [];
     ready = allReady();
     emit();
     return;
   }
   const firestore = db();
-  // Always listen to every household collection, including vehicles.
+  // Always listen to every household collection, including shopping.
   unsubs = COLLECTIONS.map((name) =>
     firestore.collection(name).onSnapshot(
       (snap) => {
@@ -685,6 +745,38 @@ export async function markVehicleTaskDone(id, completedOn) {
     lastCompleted: doneOn,
     nextDue,
   });
+}
+
+export async function saveShopping(input) {
+  const existing = shopping.find((s) => s.id === input.id) || {};
+  const record = {
+    id: input.id || uid(),
+    text: String(input.text || "").trim(),
+    aisle: String(input.aisle || "").trim(),
+    notes: String(input.notes || "").trim(),
+    checked: Boolean(input.checked),
+    ...(input.id ? stampUpdate(existing) : stampNew()),
+  };
+  if (!record.text) throw new Error("What do you need?");
+  return writeDoc("shopping", record);
+}
+
+export async function deleteShopping(id) {
+  await removeDoc("shopping", id);
+}
+
+export async function toggleShopping(id) {
+  const existing = shopping.find((s) => s.id === id);
+  if (!existing) throw new Error("Item not found.");
+  return saveShopping({
+    ...existing,
+    checked: !existing.checked,
+  });
+}
+
+export async function clearCompletedShopping() {
+  const done = shopping.filter((s) => s.checked);
+  for (const item of done) await removeDoc("shopping", item.id);
 }
 
 export function snapshot() {

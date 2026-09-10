@@ -13,6 +13,7 @@ import {
   deleteEvent,
   deleteMaintenance,
   deletePayment,
+  deleteShopping,
   deleteVehicle,
   deleteVehicleTask,
   markMaintenanceDone,
@@ -21,12 +22,15 @@ import {
   saveEvent,
   saveMaintenance,
   savePayment,
+  saveShopping,
   saveVehicle,
   saveVehicleTask,
   startStore,
   stopStore,
   subscribe,
   onStoreError,
+  toggleShopping,
+  clearCompletedShopping,
 } from "./store.js";
 import { escapeHtml, firebaseConfigured, householdEmails, ymd } from "./util.js";
 import { renderCalendar } from "./calendar.js";
@@ -44,6 +48,11 @@ import {
   renderVehicleTaskDetail,
   renderVehicleTaskForm,
 } from "./vehicles.js";
+import {
+  renderShoppingDetail,
+  renderShoppingForm,
+  renderShoppingList,
+} from "./shopping.js";
 
 const view = document.getElementById("view");
 const authScreen = document.getElementById("auth-screen");
@@ -53,7 +62,15 @@ const toastEl = document.getElementById("toast");
 const whoEl = document.getElementById("who");
 const tabbar = document.getElementById("tabbar");
 
-let data = { bills: [], events: [], payments: [], maintenance: [], vehicles: [], vehicleTasks: [] };
+let data = {
+  bills: [],
+  events: [],
+  payments: [],
+  maintenance: [],
+  vehicles: [],
+  vehicleTasks: [],
+  shopping: [],
+};
 let cal = {
   year: new Date().getFullYear(),
   monthIndex: new Date().getMonth(),
@@ -99,7 +116,7 @@ async function render() {
   const section = parts[0] || "calendar";
   if (section === "bills") setTab("bills");
   else if (section === "maintenance") setTab("maintenance");
-  else if (section === "more" || section === "vehicles") setTab("more");
+  else if (section === "more" || section === "vehicles" || section === "shopping") setTab("more");
   else setTab("calendar");
 
   if (section === "bills" && parts[1] === "new") {
@@ -353,6 +370,85 @@ async function render() {
     renderVehicleList(view, data);
     return;
   }
+  if (section === "shopping" && parts[1] === "new") {
+    renderShoppingForm(view, null, {
+      save: async (input) => {
+        try {
+          const rec = await saveShopping(input);
+          toast("Added");
+          location.hash = `#/shopping/${rec.id}`;
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "shopping" && parts[1] && parts[2] === "edit") {
+    const item = (data.shopping || []).find((s) => s.id === parts[1]);
+    renderShoppingForm(view, item, {
+      save: async (input) => {
+        try {
+          await saveShopping(input);
+          toast("Saved");
+          location.hash = `#/shopping/${item.id}`;
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "shopping" && parts[1]) {
+    const item = (data.shopping || []).find((s) => s.id === parts[1]);
+    renderShoppingDetail(view, item, {
+      remove: async () => {
+        if (!confirm("Delete this item?")) return;
+        await deleteShopping(item.id);
+        toast("Removed");
+        location.hash = "#/shopping";
+      },
+      toggle: async () => {
+        try {
+          await toggleShopping(item.id);
+          toast(item.checked ? "Marked open" : "Marked done");
+          render();
+        } catch (err) {
+          toast(err.message || "Could not update");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "shopping") {
+    renderShoppingList(view, data, {
+      add: async (input) => {
+        try {
+          await saveShopping(input);
+          toast("Added");
+          render();
+          document.getElementById("shop-quick")?.focus();
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+      toggle: async (id) => {
+        try {
+          await toggleShopping(id);
+          render();
+        } catch (err) {
+          toast(err.message || "Could not update");
+        }
+      },
+      clearCompleted: async () => {
+        if (!confirm("Clear all completed items?")) return;
+        await clearCompletedShopping();
+        toast("Cleared completed");
+        render();
+      },
+    });
+    return;
+  }
   if (section === "more") {
     renderMore();
     return;
@@ -463,6 +559,13 @@ function renderMore() {
       </div>
       <p class="fine" style="margin:0">Oil changes, tag renewals, and other car reminders.</p>
     </a>
+    <a class="bill-card" href="#/shopping" style="margin-bottom:14px">
+      <div class="row">
+        <h3>Shopping / To-do</h3>
+        <span class="chip shopping">${(data.shopping || []).filter((s) => !s.checked).length}</span>
+      </div>
+      <p class="fine" style="margin:0">Shared list — groceries and errands both of you can check off.</p>
+    </a>
     <div class="card" style="margin-bottom:14px">
       <p style="margin:0 0 8px"><b>Signed in as</b><br>${escapeHtml(user.displayName || "—")}<br><span class="fine">${escapeHtml(user.email || "")}</span></p>
       <form id="name-form" class="field" style="margin:0">
@@ -478,7 +581,6 @@ function renderMore() {
       <ul>
         <li>Private notes</li>
         <li>Documents / warranties</li>
-        <li>Shopping / to-do</li>
         <li>Emergency info</li>
       </ul>
     </div>

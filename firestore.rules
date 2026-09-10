@@ -29,5 +29,8 @@ service cloud.firestore {
     match /vehicleTasks/{id} {
       allow read, write: if householdMember();
     }
+    match /shopping/{id} {
+      allow read, write: if householdMember();
+    }
   }
 }
