@@ -7,6 +7,7 @@ import {
   monthLabel,
   parseYmd,
   recurrenceLabel,
+  vehicleLabel,
   weekdayLong,
   ymd,
 } from "./util.js";
@@ -33,7 +34,7 @@ export function monthCells(year, monthIndex) {
   return cells;
 }
 
-export function itemsOnDay(cell, { bills, events, payments, maintenance }, today) {
+export function itemsOnDay(cell, { bills, events, payments, maintenance, vehicles, vehicleTasks }, today) {
   const d = cell.date;
   const year = d.getFullYear();
   const month = d.getMonth();
@@ -93,19 +94,55 @@ export function itemsOnDay(cell, { bills, events, payments, maintenance }, today
       href: `#/event/${ev.id}`,
     });
   }
+  const vehicleById = new Map((vehicles || []).map((v) => [v.id, v]));
+  for (const task of vehicleTasks || []) {
+    const vehicle = vehicleById.get(task.vehicleId);
+    const label = vehicle ? vehicleLabel(vehicle) : "Vehicle";
+    const href = `#/vehicles/${task.vehicleId}/tasks/${task.id}`;
+    const title = `${label} · ${task.name}`;
+    const doneToday = task.lastCompleted === cell.ymd;
+    const dueToday = task.nextDue === cell.ymd;
+    if (doneToday) {
+      const recur = recurrenceLabel(task);
+      dayItems.push({
+        kind: "vehicle",
+        id: task.id,
+        title,
+        tone: "paid",
+        statusLabel: "Done",
+        meta: recur ? `Done · ${recur}` : "Done",
+        href,
+      });
+    }
+    if (dueToday && !doneToday) {
+      const status = maintenanceStatus(task, today);
+      const recur = recurrenceLabel(task);
+      dayItems.push({
+        kind: "vehicle",
+        id: task.id,
+        title,
+        tone: status.tone,
+        statusLabel: status.label,
+        meta: recur ? `${status.label} · ${recur}` : status.label,
+        href,
+      });
+    }
+  }
   return dayItems;
 }
 
 export function renderCalendar(root, state, handlers) {
-  const { year, monthIndex, selectedYmd, bills, events, payments, maintenance } = state;
+  const { year, monthIndex, selectedYmd, bills, events, payments, maintenance, vehicles, vehicleTasks } =
+    state;
   const today = startToday();
   const todayYmd = ymd(today);
   const cells = monthCells(year, monthIndex);
   const selected = selectedYmd || todayYmd;
   const selectedDate = parseYmd(selected);
+  const dayState = { bills, events, payments, maintenance, vehicles, vehicleTasks };
   const selectedItems = itemsOnDay(
     { date: selectedDate, ymd: selected, inMonth: true },
-    { bills, events, payments, maintenance },
+    dayState,
     today
   );
 
@@ -119,7 +156,7 @@ export function renderCalendar(root, state, handlers) {
     <div class="cal-grid">
       ${cells
         .map((cell) => {
-          const items = itemsOnDay(cell, { bills, events, payments, maintenance }, today);
+          const items = itemsOnDay(cell, dayState, today);
           const classes = ["day"];
           if (!cell.inMonth) classes.push("is-out");
           if (cell.ymd === todayYmd) classes.push("is-today");
@@ -139,6 +176,7 @@ export function renderCalendar(root, state, handlers) {
       <span><i class="dot cat-bill"></i>Bills</span>
       <span><i class="dot cat-maintenance"></i>Home</span>
       <span><i class="dot cat-event"></i>Events</span>
+      <span><i class="dot cat-vehicle"></i>Vehicle</span>
       <span class="legend-note">Ring = overdue · faded = done · chips show due soon</span>
     </div>
     <section class="day-sheet card">
@@ -160,6 +198,7 @@ export function renderCalendar(root, state, handlers) {
         <a class="btn btn-ghost" href="#/event/new?date=${selected}">Add event</a>
         <a class="btn btn-ghost" href="#/bills/new">Add bill</a>
         <a class="btn btn-ghost" href="#/maintenance/new?date=${selected}">Add task</a>
+        <a class="btn btn-ghost" href="${vehicleFabHref(selected, vehicles)}">Vehicle</a>
       </div>
     </section>
   `;
@@ -174,12 +213,14 @@ export function renderCalendar(root, state, handlers) {
 function kindLabel(kind) {
   if (kind === "bill") return "Bill";
   if (kind === "maintenance") return "Home";
+  if (kind === "vehicle") return "Vehicle";
   return "Event";
 }
 
 function categoryClass(kind) {
   if (kind === "bill") return "cat-bill";
   if (kind === "maintenance") return "cat-maintenance";
+  if (kind === "vehicle") return "cat-vehicle";
   return "cat-event";
 }
 
@@ -189,9 +230,12 @@ function statusMod(tone) {
   return "";
 }
 
-function markClasses(it) {
+export function markClasses(it) {
   return [categoryClass(it.kind), statusMod(it.tone)].filter(Boolean).join(" ");
 }
+
+/** Alias for tests and older hooks — same category + status classes. */
+export const markClass = markClasses;
 
 function chipClass(it) {
   if (it.kind === "event") return "cat-event";
@@ -201,6 +245,12 @@ function chipClass(it) {
 function chipLabel(it) {
   if (it.kind === "event") return kindLabel(it.kind);
   return it.statusLabel || kindLabel(it.kind);
+}
+
+function vehicleFabHref(selected, vehicles) {
+  const list = vehicles || [];
+  if (list.length === 1) return `#/vehicles/${list[0].id}/tasks/new?date=${selected}`;
+  return "#/vehicles";
 }
 
 function startToday() {

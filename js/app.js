@@ -13,11 +13,16 @@ import {
   deleteEvent,
   deleteMaintenance,
   deletePayment,
+  deleteVehicle,
+  deleteVehicleTask,
   markMaintenanceDone,
+  markVehicleTaskDone,
   saveBill,
   saveEvent,
   saveMaintenance,
   savePayment,
+  saveVehicle,
+  saveVehicleTask,
   startStore,
   stopStore,
   subscribe,
@@ -32,6 +37,13 @@ import {
   renderMaintenanceForm,
   renderMaintenanceList,
 } from "./maintenance.js";
+import {
+  renderVehicleDetail,
+  renderVehicleForm,
+  renderVehicleList,
+  renderVehicleTaskDetail,
+  renderVehicleTaskForm,
+} from "./vehicles.js";
 
 const view = document.getElementById("view");
 const authScreen = document.getElementById("auth-screen");
@@ -41,7 +53,7 @@ const toastEl = document.getElementById("toast");
 const whoEl = document.getElementById("who");
 const tabbar = document.getElementById("tabbar");
 
-let data = { bills: [], events: [], payments: [], maintenance: [] };
+let data = { bills: [], events: [], payments: [], maintenance: [], vehicles: [], vehicleTasks: [] };
 let cal = {
   year: new Date().getFullYear(),
   monthIndex: new Date().getMonth(),
@@ -87,7 +99,7 @@ async function render() {
   const section = parts[0] || "calendar";
   if (section === "bills") setTab("bills");
   else if (section === "maintenance") setTab("maintenance");
-  else if (section === "more") setTab("more");
+  else if (section === "more" || section === "vehicles") setTab("more");
   else setTab("calendar");
 
   if (section === "bills" && parts[1] === "new") {
@@ -235,6 +247,111 @@ async function render() {
     });
     return;
   }
+  if (section === "vehicles" && parts[1] === "new") {
+    renderVehicleForm(view, null, {
+      save: async (input) => {
+        try {
+          const rec = await saveVehicle(input);
+          toast("Vehicle added");
+          location.hash = `#/vehicles/${rec.id}`;
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "vehicles" && parts[1] && parts[2] === "edit") {
+    const vehicle = (data.vehicles || []).find((v) => v.id === parts[1]);
+    renderVehicleForm(view, vehicle, {
+      save: async (input) => {
+        try {
+          await saveVehicle(input);
+          toast("Saved");
+          location.hash = `#/vehicles/${vehicle.id}`;
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "vehicles" && parts[1] && parts[2] === "tasks" && parts[3] === "new") {
+    const vehicle = (data.vehicles || []).find((v) => v.id === parts[1]);
+    renderVehicleTaskForm(
+      view,
+      null,
+      vehicle,
+      {
+        save: async (input) => {
+          try {
+            const rec = await saveVehicleTask(input);
+            toast("Reminder added");
+            location.hash = `#/vehicles/${rec.vehicleId}/tasks/${rec.id}`;
+          } catch (err) {
+            toast(err.message || "Could not save");
+          }
+        },
+      },
+      { presetDate: params.get("date"), presetKind: params.get("kind") }
+    );
+    return;
+  }
+  if (section === "vehicles" && parts[1] && parts[2] === "tasks" && parts[3] && parts[4] === "edit") {
+    const task = (data.vehicleTasks || []).find((t) => t.id === parts[3]);
+    const vehicle = (data.vehicles || []).find((v) => v.id === ((task && task.vehicleId) || parts[1]));
+    renderVehicleTaskForm(view, task, vehicle, {
+      save: async (input) => {
+        try {
+          await saveVehicleTask(input);
+          toast("Saved");
+          location.hash = `#/vehicles/${task.vehicleId}/tasks/${task.id}`;
+        } catch (err) {
+          toast(err.message || "Could not save");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "vehicles" && parts[1] && parts[2] === "tasks" && parts[3]) {
+    const task = (data.vehicleTasks || []).find((t) => t.id === parts[3]);
+    const vehicle = (data.vehicles || []).find((v) => v.id === (task && task.vehicleId));
+    renderVehicleTaskDetail(view, task, vehicle, {
+      remove: async () => {
+        if (!confirm("Delete this reminder?")) return;
+        await deleteVehicleTask(task.id);
+        toast("Reminder removed");
+        location.hash = `#/vehicles/${task.vehicleId}`;
+      },
+      markDone: async (completedOn) => {
+        try {
+          await markVehicleTaskDone(task.id, completedOn);
+          toast("Marked done");
+          render();
+        } catch (err) {
+          toast(err.message || "Could not update");
+        }
+      },
+    });
+    return;
+  }
+  if (section === "vehicles" && parts[1]) {
+    const vehicle = (data.vehicles || []).find((v) => v.id === parts[1]);
+    const tasks = (data.vehicleTasks || []).filter((t) => t.vehicleId === parts[1]);
+    renderVehicleDetail(view, vehicle, tasks, {
+      remove: async () => {
+        if (!confirm("Delete this vehicle and its reminders?")) return;
+        await deleteVehicle(vehicle.id);
+        toast("Vehicle removed");
+        location.hash = "#/vehicles";
+      },
+    });
+    return;
+  }
+  if (section === "vehicles") {
+    renderVehicleList(view, data);
+    return;
+  }
   if (section === "more") {
     renderMore();
     return;
@@ -338,6 +455,13 @@ function renderMore() {
       </div>
       <p class="fine" style="margin:0">Filters, pest spray, and other recurring upkeep.</p>
     </a>
+    <a class="bill-card" href="#/vehicles" style="margin-bottom:14px">
+      <div class="row">
+        <h3>Vehicles</h3>
+        <span class="chip vehicle">${(data.vehicles || []).length}</span>
+      </div>
+      <p class="fine" style="margin:0">Oil changes, tag renewals, and other car reminders.</p>
+    </a>
     <div class="card" style="margin-bottom:14px">
       <p style="margin:0 0 8px"><b>Signed in as</b><br>${escapeHtml(user.displayName || "—")}<br><span class="fine">${escapeHtml(user.email || "")}</span></p>
       <form id="name-form" class="field" style="margin:0">
@@ -353,7 +477,6 @@ function renderMore() {
       <ul>
         <li>Private notes</li>
         <li>Documents / warranties</li>
-        <li>Vehicles</li>
         <li>Shopping / to-do</li>
         <li>Emergency info</li>
       </ul>
