@@ -8,14 +8,14 @@ Live (after GitHub Pages is on): https://shootngo.github.io/nestor/
 
 ## What is in sections 1–3
 
-- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v9`) so it never collides with Nickey, Rosa, or Stashr.
+- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v10`) so it never collides with Nickey, Rosa, or Stashr.
 - **Icon:** house in a nest (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`).
 - **Splash:** egg hatching a house (`assets/splash.jpg`) — shown briefly on first load of a session.
 - **Theme:** sage, cream, nest browns.
-- **Calendar** month view. Dots and day-sheet rails are colored by **category** (bills ember, home sage, events slate, vehicles steel-blue). Status (overdue / due soon / done) is a secondary cue. Events open a fillable detail page.
+- **Calendar** month view. Each day **square is filled** with a strong **category** color (bills coral, home neon-green, vehicles blue, events slate-purple). When a day has more than one category, the most urgent wins the fill (overdue unpaid bill > overdue home > due soon > done/paid); tiny dots show the rest. Empty days stay cream. Day-sheet rails keep the same category colors. Events open a fillable detail page.
 - **Bills** with name, typical monthly amount, due day. Log amount paid per month. Simple Chart.js trend on the bill page.
-- **Home maintenance** recurring tasks (every N days/weeks/months, or just a next-due date). Mark done advances the next due. Calendar marks use the home (sage) category color.
-- **Vehicles** — nickname / year / make / model / plate, plus oil-change, tag-renewal, and other dated reminders. Mark done advances the next due. Calendar marks use the vehicle (steel-blue) category color.
+- **Home maintenance** recurring tasks (every N days/weeks/months, or just a next-due date). Mark done advances the next due. Calendar day fill uses the home (bright green) category color.
+- **Vehicles** — nickname / year / make / model / plate, plus oil-change, tag-renewal, and other dated reminders. Mark done advances the next due. Calendar day fill uses the vehicle (strong blue) category color.
 - **Attribution** on bills, payments, events, maintenance, vehicles, and vehicle tasks (`createdBy` uid / email / displayName).
 
 ## Run locally

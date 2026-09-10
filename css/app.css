@@ -20,21 +20,25 @@
   --paid: #5e8c61;
   --paid-soft: #dce9dd;
   --upcoming: #a39280;
-  --cat-bill: #c46b4a;
-  --cat-bill-soft: #f6e0d6;
-  --cat-bill-ink: #8a3a26;
-  --cat-maintenance: #4a6b4e;
-  --cat-maintenance-soft: #d7e4d8;
-  --cat-maintenance-ink: #243828;
-  --cat-event: #5d6f82;
-  --cat-event-soft: #dce3ea;
-  --cat-event-ink: #2c3a4a;
-  --cat-vehicle: #4f6d80;
-  --cat-vehicle-soft: #d9e3ea;
-  --cat-vehicle-ink: #2c3f4a;
-  --vehicle: #4f6d80;
-  --vehicle-soft: #d9e3ea;
-  --vehicle-ink: #2c3f4a;
+  --cat-bill: #e84c3a;
+  --cat-bill-fill: #ff7460;
+  --cat-bill-soft: #ffd8d1;
+  --cat-bill-ink: #7a2418;
+  --cat-maintenance: #12c94a;
+  --cat-maintenance-fill: #4dff78;
+  --cat-maintenance-soft: #c8fbd4;
+  --cat-maintenance-ink: #0c4a22;
+  --cat-event: #6d6288;
+  --cat-event-fill: #a394c4;
+  --cat-event-soft: #e4dcf2;
+  --cat-event-ink: #32284a;
+  --cat-vehicle: #1d7aee;
+  --cat-vehicle-fill: #4ea6ff;
+  --cat-vehicle-soft: #cfe6ff;
+  --cat-vehicle-ink: #0b3a72;
+  --vehicle: #1d7aee;
+  --vehicle-soft: #cfe6ff;
+  --vehicle-ink: #0b3a72;
   --shadow: 0 10px 28px rgba(63, 42, 29, 0.08);
   --radius: 18px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -316,17 +320,24 @@ a { color: var(--sage-dark); }
   text-transform: uppercase;
 }
 .day {
+  position: relative;
   aspect-ratio: 1 / 1.05;
   border: 0;
-  background: transparent;
+  background: var(--paper);
   border-radius: 12px;
-  padding: 4px 2px 3px;
+  padding: 4px 2px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 2px;
   min-height: 48px;
+  color: var(--ink);
 }
+.day.fill-bill { background: var(--cat-bill-fill); }
+.day.fill-maintenance { background: var(--cat-maintenance-fill); }
+.day.fill-vehicle { background: var(--cat-vehicle-fill); }
+.day.fill-event { background: var(--cat-event-fill); }
 .day .n {
   width: 28px;
   height: 28px;
@@ -335,17 +346,25 @@ a { color: var(--sage-dark); }
   border-radius: 999px;
   font-weight: 800;
   font-size: 0.92rem;
+  color: var(--ink);
 }
-.day.is-out { opacity: 0.35; }
+.day.is-out { opacity: 0.38; }
 .day.is-today .n {
-  box-shadow: inset 0 0 0 2px var(--sage);
+  box-shadow: inset 0 0 0 2px var(--sage-deep);
+}
+.day.is-selected {
+  box-shadow: 0 0 0 2px var(--sage-deep);
 }
 .day.is-selected .n {
-  background: var(--sage);
+  background: var(--sage-deep);
   color: #fff;
   box-shadow: none;
 }
 .dots {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 3px;
   display: flex;
   gap: 3px;
   min-height: 6px;
@@ -357,33 +376,46 @@ a { color: var(--sage-dark); }
   height: 6px;
   border-radius: 999px;
   background: var(--sage);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
 }
 .dot.cat-bill { background: var(--cat-bill); }
 .dot.cat-maintenance { background: var(--cat-maintenance); }
 .dot.cat-event { background: var(--cat-event); }
 .dot.cat-vehicle { background: var(--cat-vehicle); }
-.dot.is-done { opacity: 0.42; }
+.dot.is-done { opacity: 0.55; }
 .dot.is-overdue {
-  box-shadow: 0 0 0 1.5px var(--cream), 0 0 0 2.5px var(--bark);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.9), 0 0 0 2.5px var(--bark);
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px 14px;
   margin: 10px 0 14px;
   font-size: 0.78rem;
   color: var(--muted);
   font-weight: 700;
 }
-.legend i {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  margin-right: 5px;
-  vertical-align: 1px;
+.legend-lead {
+  flex-basis: 100%;
+  color: var(--ink);
+  font-weight: 800;
 }
+.legend i.swatch,
+.legend .swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  box-shadow: inset 0 0 0 1px rgba(44, 36, 28, 0.12);
+}
+.legend .swatch.fill-bill { background: var(--cat-bill-fill); }
+.legend .swatch.fill-maintenance { background: var(--cat-maintenance-fill); }
+.legend .swatch.fill-vehicle { background: var(--cat-vehicle-fill); }
+.legend .swatch.fill-event { background: var(--cat-event-fill); }
 .legend-note {
   flex-basis: 100%;
   font-weight: 600;
