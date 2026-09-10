@@ -127,7 +127,8 @@ export function actorFrom(user) {
 }
 
 /**
- * Color on calendar: red unpaid/overdue, yellow due within ~7 days, green paid.
+ * Bill status for list chips and calendar item copy.
+ * Calendar dots/rails use category color; status is a secondary cue.
  */
 export function billStatus(bill, payments, year, monthIndex, today = new Date()) {
   const period = `${year}-${pad2(monthIndex + 1)}`;
@@ -175,7 +176,8 @@ export function recurrenceLabel(task) {
 }
 
 /**
- * Color on calendar: red overdue, yellow due within ~7 days, green done/handled.
+ * Maintenance status for list chips and calendar item copy.
+ * Calendar dots/rails use category color; status is a secondary cue.
  */
 export function maintenanceStatus(task, today = new Date()) {
   if (task.lastCompleted && !task.nextDue) {

@@ -47,6 +47,7 @@ export function itemsOnDay(cell, { bills, events, payments, maintenance }, today
       id: bill.id,
       title: bill.name,
       tone: status.tone,
+      statusLabel: status.label,
       meta: `${formatMoney(bill.typicalAmount)} · ${status.label}`,
       href: `#/bills/${bill.id}`,
     });
@@ -61,6 +62,7 @@ export function itemsOnDay(cell, { bills, events, payments, maintenance }, today
         id: task.id,
         title: task.name,
         tone: "paid",
+        statusLabel: "Done",
         meta: recur ? `Done · ${recur}` : "Done",
         href: `#/maintenance/${task.id}`,
       });
@@ -73,6 +75,7 @@ export function itemsOnDay(cell, { bills, events, payments, maintenance }, today
         id: task.id,
         title: task.name,
         tone: status.tone,
+        statusLabel: status.label,
         meta: recur ? `${status.label} · ${recur}` : status.label,
         href: `#/maintenance/${task.id}`,
       });
@@ -85,6 +88,7 @@ export function itemsOnDay(cell, { bills, events, payments, maintenance }, today
       id: ev.id,
       title: ev.title,
       tone: "event",
+      statusLabel: "Event",
       meta: ev.notes || "Event",
       href: `#/event/${ev.id}`,
     });
@@ -122,7 +126,7 @@ export function renderCalendar(root, state, handlers) {
           if (cell.ymd === selected) classes.push("is-selected");
           const dots = items
             .slice(0, 4)
-            .map((it) => `<span class="dot ${it.tone}"></span>`)
+            .map((it) => `<span class="dot ${markClasses(it)}"></span>`)
             .join("");
           return `<button class="${classes.join(" ")}" data-ymd="${cell.ymd}">
             <span class="n">${cell.date.getDate()}</span>
@@ -132,10 +136,10 @@ export function renderCalendar(root, state, handlers) {
         .join("")}
     </div>
     <div class="legend">
-      <span><i class="dot unpaid"></i>Overdue</span>
-      <span><i class="dot due"></i>Due soon</span>
-      <span><i class="dot paid"></i>Done</span>
-      <span><i class="dot event"></i>Event</span>
+      <span><i class="dot cat-bill"></i>Bills</span>
+      <span><i class="dot cat-maintenance"></i>Home</span>
+      <span><i class="dot cat-event"></i>Events</span>
+      <span class="legend-note">Ring = overdue · faded = done · chips show due soon</span>
     </div>
     <section class="day-sheet card">
       <h3>${escapeHtml(weekdayLong(selectedDate))}</h3>
@@ -144,9 +148,9 @@ export function renderCalendar(root, state, handlers) {
           ? `<div class="item-list">${selectedItems
               .map(
                 (it) => `<a class="item" href="${it.href}">
-                  <span class="rail ${it.tone}"></span>
+                  <span class="rail ${markClasses(it)}"></span>
                   <span><b>${escapeHtml(it.title)}</b><small>${escapeHtml(it.meta)}</small></span>
-                  <span class="chip ${it.tone === "event" ? "" : it.tone}">${kindLabel(it.kind)}</span>
+                  <span class="chip ${chipClass(it)}">${escapeHtml(chipLabel(it))}</span>
                 </a>`
               )
               .join("")}</div>`
@@ -171,6 +175,32 @@ function kindLabel(kind) {
   if (kind === "bill") return "Bill";
   if (kind === "maintenance") return "Home";
   return "Event";
+}
+
+function categoryClass(kind) {
+  if (kind === "bill") return "cat-bill";
+  if (kind === "maintenance") return "cat-maintenance";
+  return "cat-event";
+}
+
+function statusMod(tone) {
+  if (tone === "paid") return "is-done";
+  if (tone === "unpaid") return "is-overdue";
+  return "";
+}
+
+function markClasses(it) {
+  return [categoryClass(it.kind), statusMod(it.tone)].filter(Boolean).join(" ");
+}
+
+function chipClass(it) {
+  if (it.kind === "event") return "cat-event";
+  return it.tone || "";
+}
+
+function chipLabel(it) {
+  if (it.kind === "event") return kindLabel(it.kind);
+  return it.statusLabel || kindLabel(it.kind);
 }
 
 function startToday() {

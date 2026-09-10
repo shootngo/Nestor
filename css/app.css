@@ -20,6 +20,15 @@
   --paid: #5e8c61;
   --paid-soft: #dce9dd;
   --upcoming: #a39280;
+  --cat-bill: #c46b4a;
+  --cat-bill-soft: #f6e0d6;
+  --cat-bill-ink: #8a3a26;
+  --cat-maintenance: #4a6b4e;
+  --cat-maintenance-soft: #d7e4d8;
+  --cat-maintenance-ink: #243828;
+  --cat-event: #5d6f82;
+  --cat-event-soft: #dce3ea;
+  --cat-event-ink: #2c3a4a;
   --shadow: 0 10px 28px rgba(63, 42, 29, 0.08);
   --radius: 18px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -343,11 +352,13 @@ a { color: var(--sage-dark); }
   border-radius: 999px;
   background: var(--sage);
 }
-.dot.paid { background: var(--paid); }
-.dot.due { background: var(--due); }
-.dot.unpaid { background: var(--unpaid); }
-.dot.upcoming { background: var(--upcoming); }
-.dot.event { background: var(--sage-dark); }
+.dot.cat-bill { background: var(--cat-bill); }
+.dot.cat-maintenance { background: var(--cat-maintenance); }
+.dot.cat-event { background: var(--cat-event); }
+.dot.is-done { opacity: 0.42; }
+.dot.is-overdue {
+  box-shadow: 0 0 0 1.5px var(--cream), 0 0 0 2.5px var(--bark);
+}
 
 .legend {
   display: flex;
@@ -364,6 +375,11 @@ a { color: var(--sage-dark); }
   height: 8px;
   border-radius: 999px;
   margin-right: 5px;
+  vertical-align: 1px;
+}
+.legend-note {
+  flex-basis: 100%;
+  font-weight: 600;
 }
 
 .day-sheet h3 {
@@ -387,10 +403,13 @@ a { color: var(--sage-dark); }
   color: inherit;
 }
 .item .rail { width: 8px; height: 36px; border-radius: 99px; background: var(--sage); }
-.item .rail.paid { background: var(--paid); }
-.item .rail.due { background: var(--due); }
-.item .rail.unpaid { background: var(--unpaid); }
-.item .rail.upcoming { background: var(--upcoming); }
+.item .rail.cat-bill { background: var(--cat-bill); }
+.item .rail.cat-maintenance { background: var(--cat-maintenance); }
+.item .rail.cat-event { background: var(--cat-event); }
+.item .rail.is-done { opacity: 0.42; }
+.item .rail.is-overdue {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--bark);
+}
 .item b { display: block; font-size: 0.98rem; }
 .item small { color: var(--muted); }
 
@@ -407,6 +426,9 @@ a { color: var(--sage-dark); }
 .chip.due { background: var(--due-soft); color: #6d5308; }
 .chip.unpaid { background: var(--unpaid-soft); color: #8a3328; }
 .chip.upcoming { background: var(--cream-dark); color: var(--muted); }
+.chip.cat-bill { background: var(--cat-bill-soft); color: var(--cat-bill-ink); }
+.chip.cat-maintenance { background: var(--cat-maintenance-soft); color: var(--cat-maintenance-ink); }
+.chip.cat-event { background: var(--cat-event-soft); color: var(--cat-event-ink); }
 
 .empty {
   text-align: center;
