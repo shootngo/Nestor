@@ -219,3 +219,29 @@ describe("calendar legend and empty cells", () => {
     assert.match(root.innerHTML, /class="rail cat-event/);
   });
 });
+
+describe("shopping stays off the calendar", () => {
+  it("does not show list-only shopping items on a day", () => {
+    const today = parseYmd("2026-09-10");
+    const items = itemsOnDay(
+      cellFor("2026-09-10"),
+      {
+        shopping: [
+          { id: "milk", text: "Milk", aisle: "Dairy", checked: false },
+          { id: "call", text: "Call plumber", checked: false },
+        ],
+      },
+      today
+    );
+    assert.equal(
+      items.filter((it) => it.kind === "shopping").length,
+      0
+    );
+  });
+});
+
+describe("ymd helper stays local-date safe", () => {
+  it("formats a local date without UTC shift", () => {
+    assert.equal(ymd(parseYmd("2026-09-10")), "2026-09-10");
+  });
+});

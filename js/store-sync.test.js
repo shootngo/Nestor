@@ -102,4 +102,15 @@ describe("mergeServerDocs", () => {
     );
     assert.equal(pending.size, 0);
   });
+
+  it("keeps a just-saved shopping item when the snapshot has not caught up", () => {
+    const pending = new Map();
+    const rec = { id: "milk-1", text: "Milk", aisle: "Dairy", checked: false };
+    rememberSet(pending, "shopping", rec);
+    const merged = mergeServerDocs([], pending, "shopping");
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].text, "Milk");
+    const other = mergeServerDocs([], pending, "vehicleTasks");
+    assert.equal(other.length, 0);
+  });
 });

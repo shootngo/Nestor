@@ -1,14 +1,14 @@
 # Nestor
 
-Private household notebook for Frank and his wife. Calendar-first, bills, home maintenance, and vehicles next. Completeness is optional.
+Private household notebook for Frank and his wife. Calendar-first, bills, home maintenance, vehicles, and a shared shopping list. Completeness is optional.
 
-**This repo is sections 1–3:** PWA shell, Email/Password auth, calendar, bills, payment history, home maintenance, and vehicles. Private notes, documents, shopping, emergency info, push, search, and full export are later sections.
+**This repo is sections 1–4:** PWA shell, Email/Password auth, calendar, bills, payment history, home maintenance, vehicles, and shopping / to-do. Private notes, documents, emergency info, push, search, and full export are later sections.
 
 Live (after GitHub Pages is on): https://shootngo.github.io/nestor/
 
-## What is in sections 1–3
+## What is in sections 1–4
 
-- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v10`) so it never collides with Nickey, Rosa, or Stashr.
+- **PWA** named Nestor (`id` `/nestor/`, cache `nestor-v11`) so it never collides with Nickey, Rosa, or Stashr.
 - **Icon:** house in a nest (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`).
 - **Splash:** egg hatching a house (`assets/splash.jpg`) — shown briefly on first load of a session.
 - **Theme:** sage, cream, nest browns.
@@ -16,7 +16,8 @@ Live (after GitHub Pages is on): https://shootngo.github.io/nestor/
 - **Bills** with name, typical monthly amount, due day. Log amount paid per month. Simple Chart.js trend on the bill page.
 - **Home maintenance** recurring tasks (every N days/weeks/months, or just a next-due date). Mark done advances the next due. Calendar day fill uses the home (bright green) category color.
 - **Vehicles** — nickname / year / make / model / plate, plus oil-change, tag-renewal, and other dated reminders. Mark done advances the next due. Calendar day fill uses the vehicle (strong blue) category color.
-- **Attribution** on bills, payments, events, maintenance, vehicles, and vehicle tasks (`createdBy` uid / email / displayName).
+- **Shopping / to-do** — shared list both household users can add, edit, check off, and delete. Optional aisle/category and notes. List-only (no calendar dots or day fill). Preview seeds a few sample items.
+- **Attribution** on bills, payments, events, maintenance, vehicles, vehicle tasks, and shopping (`createdBy` uid / email / displayName).
 
 ## Run locally
 
@@ -147,7 +148,7 @@ Config and rules in this repo are already filled in for `nestor-c2ae8`. **Never 
 | Firestore → Rules → Publish | **Frank — publish `firestore.rules`** |
 | Auth authorized domains | `shootngo.github.io` + `localhost` |
 
-## Firestore shape (sections 1–3)
+## Firestore shape (sections 1–4)
 
 Shared household collections — both users read/write everything. Every write stamps `createdBy`:
 
@@ -181,21 +182,25 @@ vehicleTasks/{id}
   intervalCount (0 = one-time), intervalUnit (days|weeks|months|years),
   nextDue (YYYY-MM-DD), lastCompleted (YYYY-MM-DD),
   createdBy, createdAt, updatedBy, updatedAt
+
+shopping/{id}
+  text, aisle (optional), notes, checked,
+  createdBy, createdAt, updatedBy, updatedAt
 ```
 
-One payment document per bill per month (saving again updates that month). Marking a maintenance or vehicle task done sets `lastCompleted` and, when an interval is set, advances `nextDue`. Deleting a vehicle removes its reminders.
+One payment document per bill per month (saving again updates that month). Marking a maintenance or vehicle task done sets `lastCompleted` and, when an interval is set, advances `nextDue`. Deleting a vehicle removes its reminders. Shopping items stay on the list — they do not appear on the calendar.
 
 ## Security — how Frank locks it down
 
 1. Publish `firestore.rules` with **only** the two emails.
 2. Do not enable other Auth providers.
 3. Do not add a Sign up screen.
-4. Production-mode Firestore (deny by default except the household collections above). After this section, republish `firestore.rules` so `vehicles` and `vehicleTasks` are allowed.
+4. Production-mode Firestore (deny by default except the household collections above). After this section, republish `firestore.rules` so `shopping` is allowed.
 5. Optional later: custom claims (`household: true`) instead of an email list.
 
 The allowlist in `js/config.js` is a courtesy. Anyone can edit a copy of the client. **Rules are the lock.**
 
-The shell can be cached offline. Live calendar/bill/maintenance/vehicle data needs the network (Firestore). Local preview is the exception.
+The shell can be cached offline. Live calendar/bill/maintenance/vehicle/shopping data needs the network (Firestore). Local preview is the exception.
 
 ## Add to Home Screen (Android)
 
@@ -205,4 +210,4 @@ The shell can be cached offline. Live calendar/bill/maintenance/vehicle data nee
 
 ## Out of scope (do not expect these yet)
 
-Encrypted private notes, documents/warranties, shopping/todo, emergency info, FCM push, global search, full export.
+Encrypted private notes, documents/warranties, emergency info, FCM push, global search, full export.
